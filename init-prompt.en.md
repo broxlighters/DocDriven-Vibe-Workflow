@@ -150,6 +150,7 @@ Content (paste in full):
 
 ## Agent Roles
 
+Analyst: chat with user to gather requirements / output requirements/ docs
 Planner: analyze requirements / maintain architecture docs / break down tasks / assign tasks / handle changes and BLOCKED
 Coder: read tasks / write code and tests / move tasks to review/
 Reviewer: check completeness / architecture compliance / code quality / output review results
@@ -164,6 +165,7 @@ docs/
 ├── conventions.md
 ├── decisions.md
 ├── prompt/
+│   ├── analyst-prompt.md
 │   ├── planner-prompt.md
 │   ├── coder-prompt.md
 │   ├── reviewer-prompt.md
@@ -288,7 +290,49 @@ Markdown = truth / Git = history / Context = temporary cache
 
 ---
 
-### 9. docs/prompt/planner-prompt.md
+### 9. docs/prompt/analyst-prompt.md
+
+Content:
+
+# Analyst Prompt
+
+Usage: Start a new conversation, paste this entire file, then describe your project idea.
+
+---
+
+## Prompt
+
+\```
+You are the Analyst Agent, responsible for gathering requirements through conversation and outputting structured requirement documents.
+
+## Workflow
+
+### Phase 1: Gather information
+
+Ask the user the following questions one at a time, probing for details based on their answers:
+
+1. What problem does this project solve? Who are the target users?
+2. What are the main functional modules?
+3. For each module: what specific features does it include? Any constraints or boundaries?
+4. Is there a priority order? What is MVP vs. future iteration?
+5. Any technology preferences or constraints? (language, framework, database, deployment, etc.)
+
+### Phase 2: Confirm requirements
+
+Present a structured summary for user confirmation before proceeding to Phase 3.
+
+### Phase 3: Write files (must use tools to actually create files)
+
+1. Write docs/requirements.md
+2. Write docs/requirements/RQ-XXX-module-name.md for each module (starting from RQ-001)
+3. If the user provided a tech stack, write docs/architecture/system.md
+
+Mandatory: use file-writing tools to create these files. Do not just display the content in the conversation.
+\```
+
+---
+
+### 10. docs/prompt/planner-prompt.md
 
 Content:
 
@@ -341,7 +385,7 @@ FailCount: 0
 
 ---
 
-### 10. docs/prompt/coder-prompt.md
+### 11. docs/prompt/coder-prompt.md
 
 Content:
 
@@ -378,7 +422,7 @@ You are the Coder Agent, responsible for implementing code according to the Task
 
 ---
 
-### 11. docs/prompt/reviewer-prompt.md
+### 12. docs/prompt/reviewer-prompt.md
 
 Content:
 
@@ -421,7 +465,7 @@ Generate reviews/TASK-XXX-review-N.md (N = current review round number)
 
 ---
 
-### 12. docs/prompt/orchestrator-prompt.md
+### 13. docs/prompt/orchestrator-prompt.md
 
 Content:
 
@@ -456,7 +500,7 @@ You are the Orchestrator Agent, responsible for driving the entire vibe-coding w
 
 ---
 
-### 13. README.md
+### 14. README.md
 
 Content:
 
@@ -466,7 +510,7 @@ Content:
 
 > Markdown is memory, Git is the database, directories are the state machine, Agents are the executors.
 
-Three agents collaborate on development tasks. All state is maintained through the file system — no chat history required.
+Four agents collaborate on development tasks. All state is maintained through the file system — no chat history required.
 
 ---
 
@@ -486,13 +530,18 @@ Both modes share the same file structure and can be switched at any time.
 
 ## Quick Start
 
-**Step 1: Fill in foundation docs**
+**Step 1: Run the Analyst (recommended)**
 
+New conversation → paste docs/prompt/analyst-prompt.md → describe your project
+
+The Analyst gathers requirements and writes docs/requirements.md and docs/requirements/RQ-XXX.md automatically.
+
+Or fill in manually:
 - docs/requirements.md — what the project does and its modules
 - docs/architecture/system.md — tech stack
 - docs/conventions.md — naming and code style
 
-**Step 2 (manual): Run Planner → Coder → Reviewer in sequence**
+**Step 2 (manual): Run Analyst → Planner → Coder → Reviewer in sequence**
 
 Each in a new conversation; paste the corresponding prompt file and attach relevant docs.
 
@@ -505,6 +554,8 @@ New conversation, paste docs/prompt/orchestrator-prompt.md, attach all docs/ con
 ## Flow
 
 \```
+Requirements (via Analyst or manual)
+     ↓
 [Planner] break down tasks  → tasks/todo/
 [Planner] assign tasks      → tasks/coding/
 [Coder]   implement         → tasks/review/
@@ -519,7 +570,7 @@ New conversation, paste docs/prompt/orchestrator-prompt.md, attach all docs/ con
 
 ---
 
-### 14. Create empty directories (with .gitkeep placeholder files)
+### 15. Create empty directories (with .gitkeep placeholder files)
 
 - docs/requirements/
 - docs/tasks/todo/

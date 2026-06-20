@@ -150,6 +150,7 @@ API:        /api/user
 
 ## Agent职责
 
+Analyst：与用户对话收集需求 / 输出 requirements/ 文档
 Planner：分析需求 / 维护架构文档 / 拆解任务 / 分配任务 / 处理变更和BLOCKED
 Coder：读取任务 / 编写代码和测试 / 移动任务到 review/
 Reviewer：检查完成度 / 架构符合性 / 代码质量 / 输出Review结果
@@ -164,6 +165,7 @@ docs/
 ├── conventions.md
 ├── decisions.md
 ├── prompt/
+│   ├── analyst-prompt.md
 │   ├── planner-prompt.md
 │   ├── coder-prompt.md
 │   ├── reviewer-prompt.md
@@ -290,7 +292,49 @@ Markdown = 真相 / Git = 历史 / Context = 临时缓存
 
 ---
 
-### 9. docs/prompt/planner-prompt.md
+### 9. docs/prompt/analyst-prompt.md
+
+内容：
+
+# Analyst Prompt
+
+使用方式：新开对话，粘贴本文全部内容，开始描述你想做什么。
+
+---
+
+## 提示词
+
+```
+你是 Analyst Agent，负责通过对话收集需求，整理并输出结构化需求文档。
+
+## 工作流程
+
+### 第一阶段：提问收集
+
+依次询问用户以下问题，每次只问一个，根据回答追问细节，直到信息足够清晰：
+
+1. 这个项目要解决什么问题？目标用户是谁？
+2. 核心功能模块有哪些？
+3. 针对每个模块：有哪些具体功能？有什么限制或边界条件？
+4. 是否有优先级？哪些是 MVP 必须有的，哪些是后续迭代的？
+5. 技术偏好或约束？（语言、框架、数据库、部署环境等）
+
+### 第二阶段：确认需求
+
+整理后展示给用户确认，用户确认后再进入第三阶段。
+
+### 第三阶段：输出文档（必须用工具实际写入文件）
+
+1. 写入 docs/requirements.md
+2. 为每个模块写入 docs/requirements/RQ-XXX-模块名.md
+3. 若用户提供技术栈，写入 docs/architecture/system.md
+
+强制要求：必须调用文件写入工具实际创建以上文件，不允许仅在对话中展示内容。
+```
+
+---
+
+### 10. docs/prompt/planner-prompt.md
 
 内容：
 
@@ -343,7 +387,7 @@ FailCount: 0
 
 ---
 
-### 10. docs/prompt/coder-prompt.md
+### 11. docs/prompt/coder-prompt.md
 
 内容：
 
@@ -380,7 +424,7 @@ FailCount: 0
 
 ---
 
-### 11. docs/prompt/reviewer-prompt.md
+### 12. docs/prompt/reviewer-prompt.md
 
 内容：
 
@@ -423,7 +467,7 @@ FailCount: 0
 
 ---
 
-### 12. docs/prompt/orchestrator-prompt.md
+### 13. docs/prompt/orchestrator-prompt.md
 
 内容：
 
@@ -458,7 +502,7 @@ FailCount: 0
 
 ---
 
-### 13. README.md
+### 14. README.md
 
 内容：
 
@@ -466,7 +510,7 @@ FailCount: 0
 
 > Markdown 是记忆，Git 是数据库，目录是状态机，Agent 是执行者。
 
-三个 Agent 协作完成开发任务，状态全部通过文件目录维护，不依赖对话历史。
+四个 Agent 协作完成开发任务，状态全部通过文件目录维护，不依赖对话历史。
 
 ---
 
@@ -486,13 +530,18 @@ FailCount: 0
 
 ## 快速开始
 
-**第一步：填写基础文档**
+**第一步：启动 Analyst（推荐）**
 
+新开对话 → 粘贴 docs/prompt/analyst-prompt.md → 描述你的项目想法
+
+Analyst 会通过对话收集需求，自动生成 docs/requirements.md 和 docs/requirements/RQ-XXX.md。
+
+也可以手动填写：
 - docs/requirements.md — 项目要做什么、有哪些模块
 - docs/architecture/system.md — 使用什么技术栈
 - docs/conventions.md — 命名规范和代码风格
 
-**第二步（手动）：依次启动 Planner → Coder → Reviewer**
+**第二步（手动）：依次启动 Analyst → Planner → Coder → Reviewer**
 
 每次新开对话，粘贴对应提示词文件内容，附上相关文档。
 
@@ -505,6 +554,8 @@ FailCount: 0
 ## 流程说明
 
 ```
+需求（通过 Analyst 收集或手动填写）
+     ↓
 [Planner] 拆解任务 → tasks/todo/
 [Planner] 分配任务 → tasks/coding/
 [Coder]   实现代码 → tasks/review/
@@ -519,7 +570,7 @@ FailCount: 0
 
 ---
 
-### 14. 创建以下空目录（放置 .gitkeep 占位文件）
+### 15. 创建以下空目录（放置 .gitkeep 占位文件）
 
 - docs/requirements/
 - docs/tasks/todo/

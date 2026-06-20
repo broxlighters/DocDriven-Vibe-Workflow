@@ -4,7 +4,7 @@
 
 > Markdown 是记忆，Git 是数据库，目录是状态机，Agent 是执行者。
 
-三个 Agent 协作完成开发任务，状态全部通过文件目录维护，不依赖对话历史。
+四个 Agent 协作完成开发任务，状态全部通过文件目录维护，不依赖对话历史。
 
 ---
 
@@ -17,6 +17,7 @@ docs/
 ├── decisions.md             # 架构决策记录
 ├── process.md               # 完整工作流说明
 ├── prompt/
+│   ├── analyst-prompt.md        # Analyst 提示词（需求收集）
 │   ├── planner-prompt.md        # Planner 提示词
 │   ├── coder-prompt.md          # Coder 提示词
 │   ├── reviewer-prompt.md       # Reviewer 提示词
@@ -54,10 +55,13 @@ docs/
 
 ## 快速开始
 
-**第一步：填写基础文档**
+**第一步：启动 Analyst（推荐）**
 
-在开始之前，先填写以下三个文件：
+新开对话 → 粘贴 `docs/prompt/analyst-prompt.md` → 描述你的项目想法
 
+Analyst 会通过对话收集需求，自动生成 `docs/requirements.md` 和 `docs/requirements/RQ-XXX.md`。
+
+也可以手动填写：
 - `docs/requirements.md` — 项目要做什么、有哪些模块
 - `docs/architecture/system.md` — 使用什么技术栈
 - `docs/conventions.md` — 命名规范和代码风格
@@ -94,7 +98,7 @@ Coder 实现代码后，将 Task 文件手动移到 `tasks/review/`。
 ## 流程说明
 
 ```
-需求文档
+需求文档（通过 Analyst 收集或手动填写）
    ↓
 [Planner] 拆解任务 → tasks/todo/
    ↓

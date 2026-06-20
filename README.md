@@ -4,7 +4,7 @@
 
 > Markdown is memory, Git is the database, directories are the state machine, Agents are the executors.
 
-Three agents collaborate on development tasks. All state is maintained through the file system — no chat history required.
+Four agents collaborate on development tasks. All state is maintained through the file system — no chat history required.
 
 ---
 
@@ -17,6 +17,7 @@ docs/
 ├── decisions.md             # Architecture decision records
 ├── process.md               # Full workflow reference
 ├── prompt/
+│   ├── analyst-prompt.md        # Analyst prompt (requirements gathering)
 │   ├── planner-prompt.md        # Planner prompt
 │   ├── coder-prompt.md          # Coder prompt
 │   ├── reviewer-prompt.md       # Reviewer prompt
@@ -54,8 +55,13 @@ Both modes share the same file structure and can be switched at any time.
 
 ## Quick Start
 
-**Step 1: Fill in the foundation docs**
+**Step 1: Run the Analyst (optional but recommended)**
 
+New conversation → paste `docs/prompt/analyst-prompt.md` → describe your project idea
+
+The Analyst will ask questions and generate `docs/requirements.md` and `docs/requirements/RQ-XXX.md` files automatically.
+
+Alternatively, fill in the foundation docs manually:
 - `docs/requirements.md` — what the project does and its modules
 - `docs/architecture/system.md` — tech stack
 - `docs/conventions.md` — naming and code style rules
@@ -92,7 +98,7 @@ Repeat steps 3 and 4 until all requirements are complete.
 ## Flow
 
 ```
-Requirements
+Requirements (via Analyst or manual)
      ↓
 [Planner] break down tasks  → tasks/todo/
 [Planner] assign tasks      → tasks/coding/
