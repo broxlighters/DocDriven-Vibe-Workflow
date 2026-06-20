@@ -7,6 +7,13 @@
 ## Agent职责
 
 ```text
+Analyst
+│
+├─ 与用户对话收集需求
+├─ 整理模块、功能点、优先级
+├─ 确认 MVP 范围
+└─ 输出 requirements.md 和 requirements/RQ-XXX.md
+
 Planner
 │
 ├─ 分析需求
@@ -44,6 +51,7 @@ docs/
 ├── decisions.md          # 架构决策记录
 
 ├── prompt/
+│   ├── analyst-prompt.md
 │   ├── planner-prompt.md
 │   ├── coder-prompt.md
 │   ├── reviewer-prompt.md
@@ -243,7 +251,35 @@ BLOCKED：
 
 ---
 
-# 8. Planner工作流程
+# 8. Analyst工作流程
+
+启动后：
+
+```text
+1. 每次只问用户一个问题，逐步收集：
+   - 项目目标和目标用户
+   - 核心功能模块
+   - 各模块的具体功能和边界条件
+   - MVP 范围与迭代计划
+   - 技术偏好或约束
+
+2. 整理信息，展示结构化摘要供用户确认
+
+3. 用户确认后，写入文件：
+   - docs/requirements.md
+   - docs/requirements/RQ-XXX-模块名.md（每模块一个）
+   - docs/architecture/system.md（若用户提供了技术栈）
+```
+
+---
+
+## Analyst Prompt模板
+
+见 `docs/prompt/analyst-prompt.md`
+
+---
+
+# 9. Planner工作流程
 
 启动后读取：
 
@@ -293,7 +329,7 @@ tasks/*
 
 ---
 
-# 9. Coder工作流程
+# 10. Coder工作流程
 
 读取：
 
@@ -331,7 +367,7 @@ tasks/coding/ → tasks/review/
 
 ---
 
-# 10. Reviewer工作流程
+# 11. Reviewer工作流程
 
 读取：
 
@@ -372,9 +408,10 @@ git diff
 
 ---
 
-# 11. 正常通过案例
+# 12. 正常通过案例
 
 ```text
+Analyst：与用户对话 → requirements.md + RQ-003-auth.md
 Planner：RQ-003-auth → TASK-001 → tasks/todo/
 Planner：依赖满足，移动到 tasks/coding/
 Coder：实现代码 → tasks/review/
@@ -383,7 +420,7 @@ Reviewer：PASS → reviews/TASK-001-review-1.md → tasks/done/
 
 ---
 
-# 12. FAIL案例
+# 13. FAIL案例
 
 ```text
 Reviewer：FAIL，FailCount=1 → reviews/TASK-001-review-1.md → tasks/coding/
@@ -400,7 +437,7 @@ Planner：重新拆分或修改需求 → FailCount清零 → tasks/todo/
 
 ---
 
-# 13. BLOCKED案例
+# 14. BLOCKED案例
 
 Reviewer发现需求与架构冲突：
 
@@ -417,7 +454,7 @@ Planner：FailCount清零，移回 tasks/todo/
 
 ---
 
-# 14. 需求变更案例
+# 15. 需求变更案例
 
 开发中新增需求：
 
@@ -436,7 +473,7 @@ Planner：FailCount清零，移回 tasks/todo/
 
 ---
 
-# 15. 最佳实践
+# 16. 最佳实践
 
 每个Agent执行前：
 
