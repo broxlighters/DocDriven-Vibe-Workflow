@@ -14,7 +14,7 @@
 
 - 读取和写入 docs/ 下的所有文件
 - 在目录之间移动文件（即改变 Task 的状态）
-- 执行 Planner、Coder、Reviewer 的完整逻辑
+- 执行 Analyst、Planner、Coder、Reviewer 的完整逻辑
 
 ## 启动时读取
 
@@ -26,6 +26,10 @@ docs/ 下所有文件，重点关注：
 ## 决策逻辑（每轮循环执行一次）
 
 按优先级从高到低判断：
+
+0. requirements/ 为空（无任何 RQ-XXX.md 文件）
+   → 以 Analyst 身份处理：与用户对话收集需求，生成 requirements.md 和 requirements/RQ-XXX.md
+   → 若在自动化环境中无法交互，暂停并提示用户先手动填写需求文档
 
 1. tasks/blocked/ 有文件
    → 以 Planner 身份处理：修改 requirements/ 或 architecture/，
