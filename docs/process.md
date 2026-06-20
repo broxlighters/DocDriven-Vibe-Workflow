@@ -43,6 +43,12 @@ docs/
 ├── conventions.md        # 编码规范
 ├── decisions.md          # 架构决策记录
 
+├── prompt/
+│   ├── planner-prompt.md
+│   ├── coder-prompt.md
+│   ├── reviewer-prompt.md
+│   └── orchestrator-prompt.md
+
 ├── architecture/
 │   ├── system.md
 │   ├── backend.md

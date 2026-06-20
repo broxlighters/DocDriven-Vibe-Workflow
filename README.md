@@ -1,99 +1,112 @@
-# Vibe-Coding 工作流
+[中文](README.zh.md) | **English**
 
-> Markdown 是记忆，Git 是数据库，目录是状态机，Agent 是执行者。
+# Vibe-Coding Workflow
 
-三个 Agent 协作完成开发任务，状态全部通过文件目录维护，不依赖对话历史。
+> Markdown is memory, Git is the database, directories are the state machine, Agents are the executors.
+
+Three agents collaborate on development tasks. All state is maintained through the file system — no chat history required.
 
 ---
 
-## 目录结构
+## Directory Structure
 
 ```
 docs/
-├── requirements.md          # 项目总目标
-├── conventions.md           # 编码规范
-├── decisions.md             # 架构决策记录
-├── process.md               # 完整工作流说明
-├── planner-prompt.md        # Planner 提示词
-├── coder-prompt.md          # Coder 提示词
-├── reviewer-prompt.md       # Reviewer 提示词
+├── requirements.md          # Project goals
+├── conventions.md           # Coding conventions
+├── decisions.md             # Architecture decision records
+├── process.md               # Full workflow reference
+├── prompt/
+│   ├── planner-prompt.md        # Planner prompt
+│   ├── coder-prompt.md          # Coder prompt
+│   ├── reviewer-prompt.md       # Reviewer prompt
+│   └── orchestrator-prompt.md   # Orchestrator prompt (optional, auto-drives the full flow)
 ├── architecture/
 │   ├── system.md
 │   ├── backend.md
 │   ├── frontend.md
 │   └── database.md
-├── requirements/            # RQ-XXX.md 需求文件
+├── requirements/            # RQ-XXX.md requirement files
 ├── tasks/
-│   ├── todo/                # 等待分配
-│   ├── coding/              # 开发中
-│   ├── review/              # 待审查
-│   ├── blocked/             # 被阻塞
-│   └── done/                # 已完成
-└── reviews/                 # Review 结果存档
+│   ├── todo/                # Waiting to be assigned
+│   ├── coding/              # In development
+│   ├── review/              # Pending review
+│   ├── blocked/             # Blocked
+│   └── done/                # Completed
+└── reviews/                 # Review results archive
 ```
 
 ---
 
-## 快速开始
+## Modes
 
-**第一步：填写基础文档**
+**Manual mode** (works with any AI chat tool)
 
-在开始之前，先填写以下三个文件：
+You drive each step: start each Agent, move files between directories. Best when you want to review every step.
 
-- `docs/requirements.md` — 项目要做什么、有哪些模块
-- `docs/architecture/system.md` — 使用什么技术栈
-- `docs/conventions.md` — 命名规范和代码风格
+**Auto mode** (requires a multi-step agent tool, e.g. Claude Code, Cursor Agent Mode)
 
-**第二步：启动 Planner**
+Start the Orchestrator once. It loops through the decision logic and drives Planner / Coder / Reviewer automatically until all requirements are done.
 
-新开对话 → 粘贴 `docs/planner-prompt.md` 中的提示词 → 附上 `docs/` 下所有文档内容
-
-Planner 会在 `tasks/todo/` 下生成若干 TASK 文件。
-
-**第三步：启动 Coder**
-
-新开对话 → 粘贴 `docs/coder-prompt.md` 中的提示词 → 附上 `architecture/*` + `conventions.md` + 当前 TASK 文件
-
-Coder 实现代码后，将 Task 文件手动移到 `tasks/review/`。
-
-**第四步：启动 Reviewer**
-
-新开对话 → 粘贴 `docs/reviewer-prompt.md` 中的提示词 → 附上 TASK 文件 + `architecture/*` + 代码变更内容
-
-根据结果操作：
-
-| 结果 | 操作 |
-|------|------|
-| PASS | Task 移到 `tasks/done/` |
-| FAIL（FailCount < 3）| FailCount+1，Task 移回 `tasks/coding/` |
-| FAIL（FailCount ≥ 3）| Task 移到 `tasks/blocked/`，重启 Planner 处理 |
-| BLOCKED | Task 移到 `tasks/blocked/`，重启 Planner 处理 |
-
-重复第三、四步直到所有需求完成。
+Both modes share the same file structure and can be switched at any time.
 
 ---
 
-## 流程说明
+## Quick Start
+
+**Step 1: Fill in the foundation docs**
+
+- `docs/requirements.md` — what the project does and its modules
+- `docs/architecture/system.md` — tech stack
+- `docs/conventions.md` — naming and code style rules
+
+**Step 2: Run the Planner**
+
+New conversation → paste `docs/prompt/planner-prompt.md` → attach all files under `docs/`
+
+The Planner generates TASK files in `tasks/todo/`.
+
+**Step 3: Run the Coder**
+
+New conversation → paste `docs/prompt/coder-prompt.md` → attach `architecture/*` + `conventions.md` + the current TASK file
+
+After the Coder finishes, move the Task file to `tasks/review/`.
+
+**Step 4: Run the Reviewer**
+
+New conversation → paste `docs/prompt/reviewer-prompt.md` → attach the TASK file + `architecture/*` + code changes
+
+Act on the result:
+
+| Result | Action |
+|--------|--------|
+| PASS | Move Task to `tasks/done/` |
+| FAIL (FailCount < 3) | FailCount+1, move Task back to `tasks/coding/` |
+| FAIL (FailCount ≥ 3) | Move Task to `tasks/blocked/`, restart Planner |
+| BLOCKED | Move Task to `tasks/blocked/`, restart Planner |
+
+Repeat steps 3 and 4 until all requirements are complete.
+
+---
+
+## Flow
 
 ```
-需求文档
-   ↓
-[Planner] 拆解任务 → tasks/todo/
-   ↓
-[Planner] 分配任务 → tasks/coding/
-   ↓
-[Coder]   实现代码 → tasks/review/
-   ↓
-[Reviewer] 审查
-   ↓
-PASS ──────────────────→ tasks/done/
-FAIL (FailCount < 3) → tasks/coding/  ← Coder 修复
-FAIL (FailCount ≥ 3) → tasks/blocked/
-BLOCKED ─────────────→ tasks/blocked/
-                              ↓
-                        [Planner] 修改需求/架构
-                              ↓
-                         tasks/todo/ （FailCount 清零）
+Requirements
+     ↓
+[Planner] break down tasks  → tasks/todo/
+[Planner] assign tasks      → tasks/coding/
+[Coder]   implement         → tasks/review/
+[Reviewer] review
+     ↓
+PASS                 → tasks/done/
+FAIL (< 3 times)     → tasks/coding/   ← Coder fixes
+FAIL (≥ 3 times)     → tasks/blocked/
+BLOCKED              → tasks/blocked/
+                            ↓
+                     [Planner] revise requirements/architecture
+                            ↓
+                      tasks/todo/ (FailCount reset)
 ```
 
-**核心原则：每个 Agent 都新开对话，执行前 `/clear`，不依赖聊天历史。**
+**Core principle: every Agent starts a fresh conversation with `/clear`. No reliance on chat history.**
