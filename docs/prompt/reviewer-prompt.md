@@ -39,19 +39,35 @@ Result: PASS / FAIL / BLOCKED
 建议:
 （修复方向，供 Coder 参考）
 
-## 结果处理规则
+## 结果处理规则（必须用工具/命令实际执行，不得仅输出文字说明）
+
+**第一步：写入 review 文件**
+
+使用文件写入工具生成 `docs/reviews/TASK-XXX-review-N.md`。
+
+**第二步：更新 Task 文件并移动**
 
 PASS：
-- 将 Task 文件从 tasks/review/ 移动到 tasks/done/
+```bash
+mv docs/tasks/review/TASK-XXX.md docs/tasks/done/TASK-XXX.md
+```
 
 FAIL：
-- 将 Task 文件中的 FailCount +1
-- FailCount < 3：将 Task 移回 tasks/coding/
-- FailCount ≥ 3：将 Task 移到 tasks/blocked/，在 review 文件中说明反复失败的根本原因
+- 先用文件编辑工具将 Task 文件中的 `FailCount` +1，再执行：
+```bash
+# FailCount < 3
+mv docs/tasks/review/TASK-XXX.md docs/tasks/coding/TASK-XXX.md
 
-BLOCKED（发现需求与架构冲突，或依赖缺失）：
-- 将 Task 移到 tasks/blocked/
-- 在 review 文件中清晰描述冲突内容，供 Planner 判断
+# FailCount ≥ 3
+mv docs/tasks/review/TASK-XXX.md docs/tasks/blocked/TASK-XXX.md
+```
+
+BLOCKED：
+```bash
+mv docs/tasks/review/TASK-XXX.md docs/tasks/blocked/TASK-XXX.md
+```
+
+**强制要求**：必须调用文件操作工具或执行 shell 命令完成以上所有步骤，不允许仅在文字中描述操作。
 
 ## BLOCKED 示例
 

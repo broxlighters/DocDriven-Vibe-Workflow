@@ -36,5 +36,14 @@
 1. 列出所有新增和修改的文件
 2. 简述每个文件的变更内容
 3. 说明如何验证验收标准
-4. 将 Task 文件从 tasks/coding/ 移动到 tasks/review/
+
+## 完成后必须执行（不得只输出文字说明）
+
+使用工具或命令实际移动 Task 文件：
+
+```bash
+mv docs/tasks/coding/TASK-XXX.md docs/tasks/review/TASK-XXX.md
+```
+
+**强制要求**：必须调用文件操作工具或执行 shell 命令完成移动，不允许仅在文字中描述"请移动文件"。
 ```
