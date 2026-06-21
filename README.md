@@ -2,9 +2,9 @@
 
 # Vibe-Coding Workflow
 
-> Markdown is memory, Git is the database, directories are the state machine, Agents are the executors.
+> Markdown is memory, Git is the database, Lark Base is the state machine, Agents are the executors.
 
-Four agents collaborate on development tasks. All state is maintained through the file system — no chat history required.
+Four agents collaborate on development tasks. Project goals/architecture/conventions live in Markdown; per-requirement and task state live in a Lark Base (multi-dimensional table) — neither relies on chat history.
 
 ---
 
@@ -16,26 +16,26 @@ docs/
 ├── conventions.md           # Coding conventions
 ├── decisions.md             # Architecture decision records
 ├── process.md               # Full workflow reference
+├── lark-base.md             # Lark Base config (app_token, table_id, command reference)
 ├── prompt/
 │   ├── analyst-prompt.md        # Analyst prompt (requirements gathering)
 │   ├── planner-prompt.md        # Planner prompt
 │   ├── coder-prompt.md          # Coder prompt
 │   ├── reviewer-prompt.md       # Reviewer prompt
 │   └── orchestrator-prompt.md   # Orchestrator prompt (optional, auto-drives the full flow)
-├── architecture/
-│   ├── system.md
-│   ├── backend.md
-│   ├── frontend.md
-│   └── database.md
-├── requirements/            # RQ-XXX.md requirement files
-├── tasks/
-│   ├── todo/                # Waiting to be assigned
-│   ├── coding/              # In development
-│   ├── review/              # Pending review
-│   ├── blocked/             # Blocked
-│   └── done/                # Completed
-└── reviews/                 # Review results archive
+└── architecture/
+    ├── system.md
+    ├── backend.md
+    ├── frontend.md
+    └── database.md
 ```
+
+Per-requirement (RQ), tasks, and review results all live in the **Lark Base** — no local files:
+
+- **Requirements table**: one row per requirement, with status, feature list, and acceptance criteria.
+- **Tasks table**: one row per task, linked to its requirement via a two-way link field; the task's latest review result lives in the same row.
+
+Agents call lark-cli to read and update records.
 
 ---
 
@@ -43,7 +43,7 @@ docs/
 
 **Manual mode** (works with any AI chat tool)
 
-You drive each step: start each Agent, move files between directories. Best when you want to review every step.
+You drive each step: start each Agent, update task Status in the Base. Best when you want to review every step.
 
 **Auto mode** (requires a multi-step agent tool, e.g. Claude Code, Cursor Agent Mode)
 
@@ -59,37 +59,38 @@ Both modes share the same file structure and can be switched at any time.
 
 New conversation → paste `docs/prompt/analyst-prompt.md` → describe your project idea
 
-The Analyst will ask questions and generate `docs/requirements.md` and `docs/requirements/RQ-XXX.md` files automatically.
+The Analyst will ask questions, generate `docs/requirements.md`, and create one RQ record per module in the Requirements table automatically.
 
-Alternatively, fill in the foundation docs manually:
+Alternatively, fill in the foundation manually:
 - `docs/requirements.md` — what the project does and its modules
+- Requirements table — per-requirement rows (one RQ each)
 - `docs/architecture/system.md` — tech stack
 - `docs/conventions.md` — naming and code style rules
 
 **Step 2: Run the Planner**
 
-New conversation → paste `docs/prompt/planner-prompt.md` → attach all files under `docs/`
+New conversation → paste `docs/prompt/planner-prompt.md` → attach all files under `docs/` and query the Requirements table
 
-The Planner generates TASK files in `tasks/todo/`.
+The Planner creates task records in the Tasks table (Status=todo, with `Requirement` linked to the matching RQ); each task's full information lives in the record fields.
 
 **Step 3: Run the Coder**
 
-New conversation → paste `docs/prompt/coder-prompt.md` → attach `architecture/*` + `conventions.md` + the current TASK file
+New conversation → paste `docs/prompt/coder-prompt.md` → attach `architecture/*` + `conventions.md` and query the current coding task record
 
-After the Coder finishes, move the Task file to `tasks/review/`.
+After the Coder finishes, update the task's Base record to Status=review.
 
 **Step 4: Run the Reviewer**
 
-New conversation → paste `docs/prompt/reviewer-prompt.md` → attach the TASK file + `architecture/*` + code changes
+New conversation → paste `docs/prompt/reviewer-prompt.md` → query the current review task record + attach `architecture/*` + code changes
 
-Act on the result:
+Write the review result into the task record's Review fields, then act on the result by updating the Status:
 
 | Result | Action |
 |--------|--------|
-| PASS | Move Task to `tasks/done/` |
-| FAIL (FailCount < 3) | FailCount+1, move Task back to `tasks/coding/` |
-| FAIL (FailCount ≥ 3) | Move Task to `tasks/blocked/`, restart Planner |
-| BLOCKED | Move Task to `tasks/blocked/`, restart Planner |
+| PASS | Status → done |
+| FAIL (FailCount < 3) | FailCount+1, Status → coding |
+| FAIL (FailCount ≥ 3) | Status → blocked, restart Planner |
+| BLOCKED | Status → blocked, restart Planner |
 
 Repeat steps 3 and 4 until all requirements are complete.
 
@@ -98,21 +99,23 @@ Repeat steps 3 and 4 until all requirements are complete.
 ## Flow
 
 ```
-Requirements (via Analyst or manual)
+Requirements (via Analyst or entered into the Requirements table)
      ↓
-[Planner] break down tasks  → tasks/todo/
-[Planner] assign tasks      → tasks/coding/
-[Coder]   implement         → tasks/review/
+[Planner] break down tasks  → Status=todo
+[Planner] assign tasks      → Status=coding
+[Coder]   implement         → Status=review
 [Reviewer] review
      ↓
-PASS                 → tasks/done/
-FAIL (< 3 times)     → tasks/coding/   ← Coder fixes
-FAIL (≥ 3 times)     → tasks/blocked/
-BLOCKED              → tasks/blocked/
+PASS                 → Status=done
+FAIL (< 3 times)     → Status=coding   ← Coder fixes
+FAIL (≥ 3 times)     → Status=blocked
+BLOCKED              → Status=blocked
                             ↓
                      [Planner] revise requirements/architecture
                             ↓
-                      tasks/todo/ (FailCount reset)
+                      Status=todo (FailCount reset)
 ```
+
+> State transitions are performed via `lark-cli base +record-upsert --record-id ...` on the Base's Status field — no files are moved.
 
 **Core principle: every Agent starts a fresh conversation with `/clear`. No reliance on chat history.**

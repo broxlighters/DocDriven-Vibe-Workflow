@@ -2,12 +2,12 @@
 
 ## 启动时读取
 
-- 查询当前 review 任务：
+- 查询当前 review 任务（记录字段即包含 Goal / AcceptanceCriteria / Modules 等全部信息，无需读文件）：
   ```bash
-  lark base record list --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-    --filter 'CurrentValue.[Status]="review"'
+  lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+    --filter-json '{"logic":"and","conditions":[["Status","==","review"]]}'
   ```
-- 读取对应的 `docs/tasks/TASK-XXX.md`
+- 记下该记录的 record_id、当前 FailCount、当前 ReviewRound（更新时要用）
 - docs/architecture/（所有架构文档）
 - docs/conventions.md
 - git diff 或 Coder 输出的变更文件内容
@@ -20,52 +20,47 @@
 4. 测试完整性：是否有对应的单元测试
 5. 明显 Bug：逻辑错误、空指针、边界条件等
 
-## 输出格式
+## 输出：把 Review 结果写进 Task 同一行
 
-生成文件：docs/reviews/TASK-XXX-review-N.md（N 为本次轮次编号）
+Review 结果存在 Task 记录的字段里，**只保留最新一轮**（不再写 `docs/reviews/` 文件）：
 
-内容：
-# TASK-XXX Review-N
+| 字段 | 说明 |
+|------|------|
+| ReviewResult | PASS / FAIL / BLOCKED |
+| ReviewRound | 本次轮次 = 上一轮 + 1 |
+| ReviewProblems | 问题列表，每行一条（PASS 时留空字符串） |
+| ReviewSuggestions | 修复建议，供 Coder 参考 |
 
-Result: PASS / FAIL / BLOCKED
+## 结果处理规则（必须用命令实际执行，不得仅输出文字说明）
 
-问题:
-（FAIL 时逐条列出，PASS 时省略）
-
-建议:
-（修复方向，供 Coder 参考）
-
-## 结果处理规则（必须用工具/命令实际执行，不得仅输出文字说明）
-
-**第一步：写入 review 文件**
-
-使用文件写入工具生成 `docs/reviews/TASK-XXX-review-N.md`。
-
-**第二步：更新 Base 记录状态**（从 Task 文件的 RecordID 字段获取 record_id）
+**一条 `+record-upsert` 命令同时写 Review 字段和 Status**（record_id / FailCount / ReviewRound 来自启动时的查询）。
 
 PASS：
 ```bash
-lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <RecordID> --fields '{"Status":"done"}'
+lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <record_id> \
+  --json '{"Status":"done","ReviewResult":"PASS","ReviewRound":<上一轮+1>,"ReviewProblems":"","ReviewSuggestions":""}'
 ```
 
-FAIL（FailCount < 3，先读 Task 文件中的当前 FailCount）：
+FAIL（FailCount < 3）：
 ```bash
-# 同时更新 Status 和 FailCount
-lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <RecordID> --fields '{"Status":"coding","FailCount":<FailCount+1>}'
+lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <record_id> \
+  --json '{"Status":"coding","FailCount":<FailCount+1>,"ReviewResult":"FAIL","ReviewRound":<上一轮+1>,"ReviewProblems":"问题1\n问题2","ReviewSuggestions":"建议1\n建议2"}'
 ```
 
 FAIL（FailCount ≥ 3）：
 ```bash
-lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <RecordID> --fields '{"Status":"blocked"}'
+lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <record_id> \
+  --json '{"Status":"blocked","ReviewResult":"FAIL","ReviewRound":<上一轮+1>,"ReviewProblems":"问题1\n问题2","ReviewSuggestions":"建议1\n建议2"}'
 ```
 
 BLOCKED：
 ```bash
-lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <RecordID> --fields '{"Status":"blocked"}'
+lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <record_id> \
+  --json '{"Status":"blocked","ReviewResult":"BLOCKED","ReviewRound":<上一轮+1>,"ReviewProblems":"冲突说明","ReviewSuggestions":"由 Planner 决定修改需求还是架构"}'
 ```
 
 **强制要求**：必须实际执行以上命令，不允许仅在文字中描述操作。

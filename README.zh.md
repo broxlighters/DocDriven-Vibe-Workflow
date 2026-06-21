@@ -2,9 +2,9 @@
 
 # Vibe-Coding 工作流
 
-> Markdown 是记忆，Git 是数据库，目录是状态机，Agent 是执行者。
+> Markdown 是记忆，Git 是数据库，飞书多维表格是状态机，Agent 是执行者。
 
-四个 Agent 协作完成开发任务，状态全部通过文件目录维护，不依赖对话历史。
+四个 Agent 协作完成开发任务，项目总目标/架构/规范由 Markdown 维护，逐条需求和任务状态由飞书多维表格维护，均不依赖对话历史。
 
 ---
 
@@ -23,17 +23,19 @@ docs/
 │   ├── coder-prompt.md          # Coder 提示词
 │   ├── reviewer-prompt.md       # Reviewer 提示词
 │   └── orchestrator-prompt.md   # Orchestrator 提示词（可选，自动驱动全流程）
-├── architecture/
-│   ├── system.md
-│   ├── backend.md
-│   ├── frontend.md
-│   └── database.md
-├── requirements/            # RQ-XXX.md 需求文件
-├── tasks/                   # TASK-XXX.md（不再按状态分子目录，状态由飞书多维表格管理）
-└── reviews/                 # Review 结果存档
+└── architecture/
+    ├── system.md
+    ├── backend.md
+    ├── frontend.md
+    └── database.md
 ```
 
-任务状态通过飞书多维表格追踪（todo / coding / review / done / blocked），Agent 完成工作后调用 lark-cli 更新状态字段，不再移动文件。
+逐条需求（RQ）、任务（Task）、以及审查结果都在 **飞书多维表格** 里，没有本地文件：
+
+- **Requirements 表**：每行一个需求，含状态、功能点、验收标准。
+- **Tasks 表**：每行一个 Task，通过双向关联指向所属需求；该 Task 最新一轮的 Review 结果也存在同一行。
+
+Agent 通过 lark-cli 读取和更新记录。
 
 ---
 
@@ -57,37 +59,38 @@ docs/
 
 新开对话 → 粘贴 `docs/prompt/analyst-prompt.md` → 描述你的项目想法
 
-Analyst 会通过对话收集需求，自动生成 `docs/requirements.md` 和 `docs/requirements/RQ-XXX.md`。
+Analyst 会通过对话收集需求，自动生成 `docs/requirements.md`，并在 Requirements 表为每个模块创建一条 RQ 记录。
 
 也可以手动填写：
 - `docs/requirements.md` — 项目要做什么、有哪些模块
+- Requirements 表 — 逐条需求（每行一个 RQ）
 - `docs/architecture/system.md` — 使用什么技术栈
 - `docs/conventions.md` — 命名规范和代码风格
 
 **第二步：启动 Planner**
 
-新开对话 → 粘贴 `docs/planner-prompt.md` 中的提示词 → 附上 `docs/` 下所有文档内容
+新开对话 → 粘贴 `docs/prompt/planner-prompt.md` 中的提示词 → 附上 `docs/` 下所有文档内容，并查询 Requirements 表
 
-Planner 会在 `tasks/todo/` 下生成若干 TASK 文件。
+Planner 会在 Tasks 表创建若干任务记录（Status=todo，Requirement 关联到对应 RQ），Task 的全部信息都存在记录字段里。
 
 **第三步：启动 Coder**
 
-新开对话 → 粘贴 `docs/coder-prompt.md` 中的提示词 → 附上 `architecture/*` + `conventions.md` + 当前 TASK 文件
+新开对话 → 粘贴 `docs/prompt/coder-prompt.md` 中的提示词 → 附上 `architecture/*` + `conventions.md`，并查询当前 coding 任务记录
 
-Coder 实现代码后，将 Task 文件手动移到 `tasks/review/`。
+Coder 实现代码后，将该任务的 Base 记录更新为 Status=review。
 
 **第四步：启动 Reviewer**
 
-新开对话 → 粘贴 `docs/reviewer-prompt.md` 中的提示词 → 附上 TASK 文件 + `architecture/*` + 代码变更内容
+新开对话 → 粘贴 `docs/prompt/reviewer-prompt.md` 中的提示词 → 查询当前 review 任务记录 + 附上 `architecture/*` + 代码变更内容
 
-根据结果操作：
+把 Review 结果写入该任务记录的 Review 字段，并根据结果更新 Status：
 
 | 结果 | 操作 |
 |------|------|
-| PASS | Task 移到 `tasks/done/` |
-| FAIL（FailCount < 3）| FailCount+1，Task 移回 `tasks/coding/` |
-| FAIL（FailCount ≥ 3）| Task 移到 `tasks/blocked/`，重启 Planner 处理 |
-| BLOCKED | Task 移到 `tasks/blocked/`，重启 Planner 处理 |
+| PASS | Status → done |
+| FAIL（FailCount < 3）| FailCount+1，Status → coding |
+| FAIL（FailCount ≥ 3）| Status → blocked，重启 Planner 处理 |
+| BLOCKED | Status → blocked，重启 Planner 处理 |
 
 重复第三、四步直到所有需求完成。
 
@@ -96,24 +99,26 @@ Coder 实现代码后，将 Task 文件手动移到 `tasks/review/`。
 ## 流程说明
 
 ```
-需求文档（通过 Analyst 收集或手动填写）
+需求（通过 Analyst 收集或手动录入 Requirements 表）
    ↓
-[Planner] 拆解任务 → tasks/todo/
+[Planner] 拆解任务 → Status=todo
    ↓
-[Planner] 分配任务 → tasks/coding/
+[Planner] 分配任务 → Status=coding
    ↓
-[Coder]   实现代码 → tasks/review/
+[Coder]   实现代码 → Status=review
    ↓
 [Reviewer] 审查
    ↓
-PASS ──────────────────→ tasks/done/
-FAIL (FailCount < 3) → tasks/coding/  ← Coder 修复
-FAIL (FailCount ≥ 3) → tasks/blocked/
-BLOCKED ─────────────→ tasks/blocked/
+PASS ──────────────────→ Status=done
+FAIL (FailCount < 3) → Status=coding  ← Coder 修复
+FAIL (FailCount ≥ 3) → Status=blocked
+BLOCKED ─────────────→ Status=blocked
                               ↓
                         [Planner] 修改需求/架构
                               ↓
-                         tasks/todo/ （FailCount 清零）
+                         Status=todo （FailCount 清零）
 ```
+
+> 状态流转通过 `lark-cli base +record-upsert --record-id ...` 更新飞书多维表格的 Status 字段完成，不再移动文件。
 
 **核心原则：每个 Agent 都新开对话，执行前 `/clear`，不依赖聊天历史。**
