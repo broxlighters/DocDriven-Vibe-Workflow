@@ -6,6 +6,26 @@
 - 通过 lark-cli 查询和更新飞书多维表格中的需求（Requirements 表）与任务（Tasks 表）状态（配置见 docs/lark-base.md）
 - 执行 Analyst、Planner、Coder、Reviewer 的完整逻辑
 
+## 启动时：先做登录预检（最高优先，先于一切 Base 操作）
+
+任何 `lark-cli base` 命令都依赖有效的用户授权 token。**启动后第一步，先检查 lark-cli 登录状态；未登录或 token 失效则优先完成登录认证，认证成功后再继续后续流程。**
+
+```bash
+STATUS=$(lark-cli auth status --format json --jq '.identities.user.tokenStatus' 2>/dev/null)
+```
+
+- `tokenStatus=valid` → 已登录，跳过登录，直接进入「启动时读取」。
+- 否则（未登录 / 失效 / 命令报错）→ 先登录认证：
+  ```bash
+  lark-cli auth login --domain base --no-wait --json
+  ```
+  把输出里的验证链接（或用 `lark-cli auth qrcode` 生成二维码）发给用户，**结束当前轮次**，
+  等用户在浏览器完成授权后，再用返回的 device_code 完成登录并继续：
+  ```bash
+  lark-cli auth login --device-code <device_code>
+  ```
+- 登录确认有效后，才进入下面的流程。详见 docs/lark-base.md「登录预检」。
+
 ## 启动时读取
 
 docs/ 下所有文件，重点关注：

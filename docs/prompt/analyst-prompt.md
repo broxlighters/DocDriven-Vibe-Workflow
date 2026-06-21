@@ -42,6 +42,8 @@ MVP 范围：模块一、模块二
 
 ### 第三阶段：输出（必须用工具/命令实际执行）
 
+> **登录预检（在执行任何 lark-cli base 命令前）**：先 `lark-cli auth status --format json --jq '.identities.user.tokenStatus'`，非 `valid` 则先 `lark-cli auth login --domain base --no-wait --json` 完成登录认证（详见 docs/lark-base.md「登录预检」），认证有效后再创建 RQ 记录。
+
 **1. 写入 docs/requirements.md（项目总目标）**
 
 格式：

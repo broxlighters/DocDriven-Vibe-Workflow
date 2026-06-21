@@ -2,6 +2,7 @@
 
 ## 启动时读取
 
+- **登录预检（先于一切 lark-cli base 命令）**：先 `lark-cli auth status --format json --jq '.identities.user.tokenStatus'`，非 `valid` 则先 `lark-cli auth login --domain base --no-wait --json` 完成登录认证（详见 docs/lark-base.md「登录预检」），认证有效后再继续。
 - docs/requirements.md
 - docs/architecture/（所有架构文档）
 - docs/decisions.md
