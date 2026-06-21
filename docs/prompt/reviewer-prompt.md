@@ -2,7 +2,12 @@
 
 ## 启动时读取
 
-- docs/tasks/review/TASK-XXX.md（当前待审查的 Task）
+- 查询当前 review 任务：
+  ```bash
+  lark base record list --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+    --filter 'CurrentValue.[Status]="review"'
+  ```
+- 读取对应的 `docs/tasks/TASK-XXX.md`
 - docs/architecture/（所有架构文档）
 - docs/conventions.md
 - git diff 或 Coder 输出的变更文件内容
@@ -36,29 +41,34 @@ Result: PASS / FAIL / BLOCKED
 
 使用文件写入工具生成 `docs/reviews/TASK-XXX-review-N.md`。
 
-**第二步：更新 Task 文件并移动**
+**第二步：更新 Base 记录状态**（从 Task 文件的 RecordID 字段获取 record_id）
 
 PASS：
 ```bash
-mv docs/tasks/review/TASK-XXX.md docs/tasks/done/TASK-XXX.md
+lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <RecordID> --fields '{"Status":"done"}'
 ```
 
-FAIL：
-- 先用文件编辑工具将 Task 文件中的 `FailCount` +1，再执行：
+FAIL（FailCount < 3，先读 Task 文件中的当前 FailCount）：
 ```bash
-# FailCount < 3
-mv docs/tasks/review/TASK-XXX.md docs/tasks/coding/TASK-XXX.md
+# 同时更新 Status 和 FailCount
+lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <RecordID> --fields '{"Status":"coding","FailCount":<FailCount+1>}'
+```
 
-# FailCount ≥ 3
-mv docs/tasks/review/TASK-XXX.md docs/tasks/blocked/TASK-XXX.md
+FAIL（FailCount ≥ 3）：
+```bash
+lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <RecordID> --fields '{"Status":"blocked"}'
 ```
 
 BLOCKED：
 ```bash
-mv docs/tasks/review/TASK-XXX.md docs/tasks/blocked/TASK-XXX.md
+lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <RecordID> --fields '{"Status":"blocked"}'
 ```
 
-**强制要求**：必须调用文件操作工具或执行 shell 命令完成以上所有步骤，不允许仅在文字中描述操作。
+**强制要求**：必须实际执行以上命令，不允许仅在文字中描述操作。
 
 ## BLOCKED 示例
 

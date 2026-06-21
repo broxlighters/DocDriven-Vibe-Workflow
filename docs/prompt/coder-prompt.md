@@ -4,8 +4,13 @@
 
 - docs/architecture/（所有架构文档）
 - docs/conventions.md
-- docs/tasks/coding/TASK-XXX.md（当前要实现的 Task）
-- docs/reviews/TASK-XXX-review-N.md（若存在，取编号最大的一个）
+- 查询当前 coding 任务：
+  ```bash
+  lark base record list --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+    --filter 'CurrentValue.[Status]="coding"'
+  ```
+- 读取对应的 `docs/tasks/TASK-XXX.md`（从查询结果的 TaskID 定位文件）
+- `docs/reviews/TASK-XXX-review-N.md`（若存在，取编号最大的一个）
 
 ## 职责
 
@@ -22,18 +27,16 @@
 - 不允许修改 docs/architecture/ 下的任何文件
 - 不允许跨 Task 修改无关代码
 
-## 完成后输出
+## 完成后必须执行（不得只输出文字说明）
 
 1. 列出所有新增和修改的文件
 2. 简述每个文件的变更内容
 3. 说明如何验证验收标准
-
-## 完成后必须执行（不得只输出文字说明）
-
-使用工具或命令实际移动 Task 文件：
+4. 将 Base 记录状态更新为 review（从 Task 文件的 RecordID 字段获取 record_id）：
 
 ```bash
-mv docs/tasks/coding/TASK-XXX.md docs/tasks/review/TASK-XXX.md
+lark base record update --app-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  --record-id <RecordID> --fields '{"Status":"review"}'
 ```
 
-**强制要求**：必须调用文件操作工具或执行 shell 命令完成移动，不允许仅在文字中描述"请移动文件"。
+**强制要求**：必须实际执行以上命令，不允许仅在文字中描述"请更新状态"。

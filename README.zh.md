@@ -16,6 +16,7 @@ docs/
 ├── conventions.md           # 编码规范
 ├── decisions.md             # 架构决策记录
 ├── process.md               # 完整工作流说明
+├── lark-base.md             # 飞书多维表格配置（app_token、table_id、命令参考）
 ├── prompt/
 │   ├── analyst-prompt.md        # Analyst 提示词（需求收集）
 │   ├── planner-prompt.md        # Planner 提示词
@@ -28,14 +29,11 @@ docs/
 │   ├── frontend.md
 │   └── database.md
 ├── requirements/            # RQ-XXX.md 需求文件
-├── tasks/
-│   ├── todo/                # 等待分配
-│   ├── coding/              # 开发中
-│   ├── review/              # 待审查
-│   ├── blocked/             # 被阻塞
-│   └── done/                # 已完成
+├── tasks/                   # TASK-XXX.md（不再按状态分子目录，状态由飞书多维表格管理）
 └── reviews/                 # Review 结果存档
 ```
+
+任务状态通过飞书多维表格追踪（todo / coding / review / done / blocked），Agent 完成工作后调用 lark-cli 更新状态字段，不再移动文件。
 
 ---
 
