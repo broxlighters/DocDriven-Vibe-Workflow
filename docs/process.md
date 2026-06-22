@@ -57,7 +57,8 @@ Reviewer
 ```text
 docs/
 
-├── requirements.md       # 项目总目标
+├── requirements.md       # 项目总目标（已确认）
+├── discovery.md          # 需求探讨过程记忆（Analyst 讨论稿，可中断恢复）
 ├── process.md            # 本工作流说明（即本文档）
 ├── conventions.md        # 编码规范
 ├── decisions.md          # 架构决策记录
@@ -84,9 +85,45 @@ docs/
 
 # 3. 每个文件的职责
 
+## discovery.md
+
+需求探讨过程记忆（Analyst 与用户讨论的草稿）。记录「要解决的问题 / 目标用户 / 核心模块 / 功能点 / 优先级 / 技术约束」。
+
+Analyst 每次启动先读它，已记录的内容不再重复提问，只补问空缺/待澄清项；边谈边追加，用户中途中断后可无缝续聊。
+
+分三个区，各司其职：
+
+```text
+# 项目共识            首次讨论确立的项目级背景（问题/用户/技术约束），长期常驻，
+                     后续新增需求都参考它对齐背景，不随需求归档而移除
+# 讨论稿（仅未决需求）  当前在谈、🟡讨论中 / ❓待澄清 的需求
+# 已沉淀需求索引        已建 RQ 的需求各一行，详情看 Requirements 表
+```
+
+**只保留「在谈的」需求，定稿即归档**：一个需求确认并建成 RQ 后，把它从「讨论稿」移除，在「已沉淀需求索引」留一行 `✅ 模块名 → RQ-编号`（**项目共识区不动**）。这样 discovery.md 的体量只随**未决需求数**变化，不随项目历史无限膨胀——已定稿需求的真相在 Requirements 表的 RQ，项目背景始终在「项目共识」区手边。
+
+```markdown
+# 项目共识
+## 项目要解决什么问题
+内部审批流程靠邮件，状态不透明  ✅
+## 目标用户是谁
+公司行政与各部门负责人  ✅
+## 技术偏好或约束
+Vue3 + SpringBoot + MySQL  ✅
+
+# 讨论稿（仅未决需求）
+## 核心功能模块
+- 待办与通知 🟡
+
+# 已沉淀需求索引
+- ✅ 审批流配置 → RQ-001-flow
+```
+
+---
+
 ## requirements.md
 
-项目总目标
+项目总目标（已确认）
 
 ```markdown
 # 权限管理平台
@@ -278,7 +315,8 @@ lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_
 决策优先级（每轮只做一件事，做完重新判断）：
 
 ```text
-0. Requirements 表为空      → 以 Analyst 身份收集需求
+0.  Requirements 表为空     → 以 Analyst 身份收集需求（开局模式）
+0.5 用户中途提出新增/变更需求 → 以 Analyst 身份处理（增量模式），只为新模块新建 RQ，不动旧 RQ
 1. Status=blocked 有记录    → 以 Planner 身份处理，清零 FailCount，改回 todo
 2. Status=review 有记录     → 以 Reviewer 身份审查，写 Review 字段并按结果更新 Status
 3. coding 数 < 3 且 todo 有就绪记录 → 分配：Status → coding
@@ -293,19 +331,33 @@ lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_
 
 # 9. Analyst工作流程
 
+Analyst 不是只在开局跑一次——项目进行中用户随时可再叫它谈新需求。按 Requirements 表是否已有 RQ 区分两种模式：
+
+```text
+开局模式：Requirements 表为空 → 从头收集需求，建立项目总目标与首批 RQ
+增量模式：Requirements 表已有 RQ → 只就用户本次提出的新增/变更需求讨论，
+          为新模块新建 RQ（编号递增，Status=TODO），不修改旧 RQ；
+          拆 Task 与在途任务冲突交给 Planner（见第 16 节）
+```
+
 启动后：
 
 ```text
-1. 每次只问用户一个问题，逐步收集：
+0. 先读 docs/discovery.md（讨论过程记忆）+ 查 Requirements 表判断模式：
+   已记录的内容不再重复提问，只补问空缺/🟡讨论中/❓待澄清的条目
+
+1. 每次只问用户一个问题，逐步收集尚未覆盖的部分：
    - 项目目标和目标用户
    - 核心功能模块
    - 各模块的具体功能和边界条件
    - MVP 范围与迭代计划
    - 技术偏好或约束
+   每收集到一块信息，立即追加写回 docs/discovery.md（边谈边记，可中断恢复）
 
-2. 整理信息，展示结构化摘要供用户确认
+2. 汇总 discovery.md 全部信息（含旧内容），展示结构化摘要供用户确认
 
 3. 用户确认后：
+   - 把定稿回写 docs/discovery.md（条目标 ✅，清空待澄清）
    - 写入 docs/requirements.md（项目总目标）
    - 在 Requirements 表为每个模块创建一条 RQ 记录（Status=TODO）
    - 若用户提供了技术栈，写入 docs/architecture/system.md
@@ -457,12 +509,15 @@ Planner：FailCount清零，Status → todo
 
 处理规则：
 
-1. 在 Requirements 表新增 `RQ-004-sms-login` 记录（Status=TODO）
+1. **Analyst（增量模式）** 与用户谈清新需求，追加到 discovery.md，
+   在 Requirements 表新增 `RQ-004-sms-login` 记录（Status=TODO），不动旧 RQ
 2. 不修改旧Task
-3. 检查 Tasks 表中 Status=coding / review 是否有受影响的Task
+3. **Planner** 检查 Tasks 表中 Status=coding / review 是否有受影响的Task
    - 有冲突 → Status 改为 blocked，Planner评估后重新分配
    - 无冲突 → 继续原流程
-4. Planner生成新Task：TASK-008、TASK-009 → Tasks 表（Status=todo，Requirement 关联 RQ-004）
+4. **Planner** 生成新Task：TASK-008、TASK-009 → Tasks 表（Status=todo，Requirement 关联 RQ-004）
+
+> 第 1 步是 Analyst 的职责（谈需求 + 建 RQ），第 2–4 步是 Planner 的职责（拆 Task + 处理冲突）。
 
 ---
 
