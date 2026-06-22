@@ -16,6 +16,8 @@ export REQUIREMENTS_TABLE_ID=<需求表的 table_id>    # 右键表格标签 →
 export TASKS_TABLE_ID=<任务表的 table_id>           # 同上
 export LARK_FOLDER_TOKEN=<目标文件夹的 folder_token> # 可选，建 Base 时指定父文件夹，URL 中 /folder/ 后的字符串
 export LARK_PROFILE=<lark-cli profile 名>           # 应用/机器人身份所在 profile（如 cli-bot），供 --profile 引用，勿写死
+export LARK_APP_ID=<应用 App ID>                    # 如 cli_xxx；供预检自举 config init
+export LARK_APP_SECRET=<应用 App Secret>            # 飞书后台「凭证与基础信息」复制；供预检自举，跨用户/沙箱自动恢复 bot 身份
 ```
 
 建议写入项目根目录的 `.env`（已加入 .gitignore）。
@@ -27,16 +29,30 @@ export LARK_PROFILE=<lark-cli profile 名>           # 应用/机器人身份所
 
 TAT（tenant_access_token，应用身份）用 app_id + app_secret 直接换取，**无需用户扫码授权、无 7 天续期上限**，由 lark-cli 自动获取与刷新。相比 UAT（用户身份，要扫码、refresh token 7 天过期），更适合 agent / CI 长期无人值守运行。
 
+> **跨用户 / 沙箱要点**：lark-cli 的 app secret 存在「当前 Windows 用户」的凭据库里（DPAPI 加密），**换一个系统用户（如 Codex 沙箱账户 `*\codexsandboxoffline`）就解不开**，表现为 `bot=not_configured`，即便 `profile list` 能列出该 profile。解法：把 `LARK_APP_ID` / `LARK_APP_SECRET` 放进 `.env`，预检时若 bot 未就绪，就用它们 `config init` **自举**——在当前用户的凭据库里补写凭据，从而自动恢复。
+
 ```bash
-# 先加载 .env 拿到 LARK_PROFILE（及 LARK_APP_TOKEN 等）
+# 先加载 .env 拿到 LARK_PROFILE / LARK_APP_ID / LARK_APP_SECRET 等
 set -a; source .env; set +a
 
-# 预检：确认该 profile 的 bot 身份就绪（TAT 可用）。auth status 只支持 --json（无 --format/--jq），用 python 取字段
-BOT=$(lark-cli auth status --json --profile "$LARK_PROFILE" 2>/dev/null \
-  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['bot']['status'])" 2>/dev/null)
+# 取 bot 身份状态。auth status 只支持 --json（无 --format/--jq），用 python 取字段
+bot_status() {
+  lark-cli auth status --json --profile "$LARK_PROFILE" 2>/dev/null \
+    | python -c "import sys,json;print(json.load(sys.stdin)['identities']['bot']['status'])" 2>/dev/null
+}
+BOT=$(bot_status)
+
+# bot 未就绪 → 用 .env 凭据自举（跨用户/沙箱自动恢复），再复检一次
+if [ "$BOT" != "ready" ]; then
+  if [ -n "$LARK_APP_ID" ] && [ -n "$LARK_APP_SECRET" ]; then
+    printf '%s' "$LARK_APP_SECRET" | lark-cli config init \
+      --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu >/dev/null 2>&1
+    BOT=$(bot_status)
+  fi
+fi
 
 if [ "$BOT" != "ready" ]; then
-  echo "profile $LARK_PROFILE 的应用身份未就绪：检查 .env 的 LARK_PROFILE，以及该 profile 是否已 config init（app-id/app-secret）" >&2
+  echo "应用身份仍未就绪：检查 .env 的 LARK_PROFILE / LARK_APP_ID / LARK_APP_SECRET 是否正确" >&2
 fi
 ```
 

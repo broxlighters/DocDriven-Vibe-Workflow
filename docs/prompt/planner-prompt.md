@@ -2,7 +2,11 @@
 
 ## 启动时读取
 
-- **身份预检（先于一切 lark-cli base 命令）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。可选自检 `lark-cli auth status --json --profile "$LARK_PROFILE"` 看 `.identities.bot.status` 是否 `ready`（auth status 不支持 `--format`/`--jq`，用 python 解析）。报权限不足则提示用户去飞书后台申请 base scope + 把机器人加为表格协作者，详见 docs/lark-base.md「身份与登录预检」。
+- **身份预检（先于一切 lark-cli base 命令）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。自检 `lark-cli auth status --json --profile "$LARK_PROFILE"` 看 `.identities.bot.status` 是否 `ready`（auth status 不支持 `--format`/`--jq`，用 python 解析）。常见报错排查：
+  - `bot=not_configured`：多见于**换了系统用户/沙箱账户**（如 `*\codexsandboxoffline`），原凭据库（DPAPI 按用户加密）解不开。**先自举恢复**：`printf '%s' "$LARK_APP_SECRET" | lark-cli config init --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu`，再复检 bot 状态；仍失败才提示用户检查 `.env` 的 `LARK_APP_ID`/`LARK_APP_SECRET`。**不要走扫码登录**。完整自举脚本见 docs/lark-base.md「身份与登录预检」。
+  - `app_scope_not_applied`（code 99991672）：app 没申请 base scope，提示用户去飞书后台申请并发布版本。
+  - `code 1002 "note has been deleted"`：**不是真被删**，是 `LARK_APP_TOKEN` 配错、或机器人未被加为该多维表格协作者。先核对 `.env` 的 `LARK_APP_TOKEN` 与表 URL `/base/` 后那段是否一致，再确认机器人已是协作者。
+  - 详见 docs/lark-base.md「身份与登录预检」。
 - docs/requirements.md
 - docs/architecture/（所有架构文档）
 - docs/decisions.md
