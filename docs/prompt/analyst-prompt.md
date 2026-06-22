@@ -76,7 +76,7 @@ MVP 范围：模块一、模块二
 
 ### 第三阶段：输出（必须用工具/命令实际执行）
 
-> **登录预检（在执行任何 lark-cli base 命令前）**：先 `lark-cli auth status --json` 取 `.identities.user.tokenStatus`（**auth status 不支持 `--format`/`--jq`**，用 python 解析；token 持久化在 OS 凭据库、一周内自动续期，valid 即跳过登录、勿因命令报错就扫码），非 `valid` 才 `lark-cli auth login --domain base --no-wait --json` 完成登录认证（详见 docs/lark-base.md「登录预检」），认证有效后再创建 RQ 记录。
+> **身份预检（在执行任何 lark-cli base 命令前）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。可选自检 `lark-cli auth status --json --profile "$LARK_PROFILE"` 看 `.identities.bot.status` 是否 `ready`（auth status 不支持 `--format`/`--jq`，用 python 解析）。报权限不足则提示用户去飞书后台申请 base scope + 把机器人加为表格协作者，详见 docs/lark-base.md「身份与登录预检」。认证就绪后再创建 RQ 记录。
 
 **0. 定稿并归档 docs/discovery.md**
 
@@ -111,7 +111,7 @@ xxx
 表配置和字段见 `docs/lark-base.md`。
 
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --json '{"ReqID":"RQ-001-user","Title":"用户管理","Status":"TODO","Priority":"MVP","Description":"管理用户的增删改查","Features":"创建用户\n禁用用户\n重置密码","AcceptanceCriteria":"支持分页查询\n密码加密存储\n禁用后无法登录"}'
 ```
 

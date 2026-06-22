@@ -15,40 +15,39 @@ export LARK_APP_TOKEN=<多维表格的 app_token>        # 打开多维表格，
 export REQUIREMENTS_TABLE_ID=<需求表的 table_id>    # 右键表格标签 → 复制链接获取
 export TASKS_TABLE_ID=<任务表的 table_id>           # 同上
 export LARK_FOLDER_TOKEN=<目标文件夹的 folder_token> # 可选，建 Base 时指定父文件夹，URL 中 /folder/ 后的字符串
+export LARK_PROFILE=<lark-cli profile 名>           # 应用/机器人身份所在 profile（如 cli-bot），供 --profile 引用，勿写死
 ```
 
 建议写入项目根目录的 `.env`（已加入 .gitignore）。
 
-## 登录预检（每次执行任何 lark-cli base 命令前）
+## 身份与登录预检（每次执行任何 lark-cli base 命令前）
 
-所有 `lark-cli base` 命令都依赖有效的用户授权 token。**在跑任何 Base 读写前，先检查登录状态；未登录或 token 失效则先完成登录认证，再继续。**
+**所有 `lark-cli base` 命令统一用应用（机器人）身份 TAT，免扫码**：每条命令都追加
+`--as bot --profile "$LARK_PROFILE"`（`LARK_PROFILE` 从 `.env` 读取，**不要写死 profile 名**）。
+
+TAT（tenant_access_token，应用身份）用 app_id + app_secret 直接换取，**无需用户扫码授权、无 7 天续期上限**，由 lark-cli 自动获取与刷新。相比 UAT（用户身份，要扫码、refresh token 7 天过期），更适合 agent / CI 长期无人值守运行。
 
 ```bash
-# 1. 检查登录状态：tokenStatus 为 valid 即可用
-#    注意：auth status 只支持 --json（不支持 --format/--jq），用 python 取字段
-STATUS=$(lark-cli auth status --json 2>/dev/null \
-  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['user']['tokenStatus'])" 2>/dev/null)
+# 先加载 .env 拿到 LARK_PROFILE（及 LARK_APP_TOKEN 等）
+set -a; source .env; set +a
 
-if [ "$STATUS" != "valid" ]; then
-  # 2. 未登录 / token 失效 → 发起 base 域登录（AI agent 用 --no-wait 拿到验证链接后结束本轮）
-  lark-cli auth login --domain base --no-wait --json
-  #   把输出里的 verification URL（或用 lark-cli auth qrcode 生成二维码）发给用户，
-  #   等用户在浏览器完成授权后，再用上一步返回的 device_code 完成登录：
-  #   lark-cli auth login --device-code <device_code>
+# 预检：确认该 profile 的 bot 身份就绪（TAT 可用）。auth status 只支持 --json（无 --format/--jq），用 python 取字段
+BOT=$(lark-cli auth status --json --profile "$LARK_PROFILE" 2>/dev/null \
+  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['bot']['status'])" 2>/dev/null)
+
+if [ "$BOT" != "ready" ]; then
+  echo "profile $LARK_PROFILE 的应用身份未就绪：检查 .env 的 LARK_PROFILE，以及该 profile 是否已 config init（app-id/app-secret）" >&2
 fi
 ```
 
-> **token 是持久化的**：lark-cli 把 access/refresh token 存在 OS 凭据库（keychain），
-> 带 `offline_access` scope，access token 约 2 小时过期但会用 refresh token 自动续期，
-> refresh token 7 天有效并滚动刷新。**所以正常一周内无需重新扫码**——
-> 只要 `tokenStatus=valid` 就**跳过登录**，绝不要因为预检命令报错就去扫码。
+> **为什么用 TAT 而非 UAT**：UAT 每次（或 token 过期后）都要用户扫码，agent 无人值守时反复中断；
+> TAT 是应用自身凭据，配好一次后**永久免扫码**、自动续期。代价：
+> - 记录的「创建人/修改人」显示为机器人，不是某个真人；
+> - 需在飞书开发者后台为该 app **申请对应 base scope**（如 `base:record:read/create/update`、`base:table:read`、`base:field:read`），并**发布版本**；
+> - 需把该机器人**加为目标多维表格的协作者**（文档级授权），否则即便有 scope 也读不到数据。
 >
-> 易错点：旧写法 `auth status --format json --jq '...'` 在当前 lark-cli 里会报
-> `unknown flag`，被 `2>/dev/null` 吞掉后 `STATUS` 恒为空 → 误判未登录 → 每次都扫码。
-> 必须用上面的 `--json` + python 写法。
->
-> `auth login` 是阻塞式设备流，会等用户在浏览器授权。若 harness 只投递最终消息，必须用 `--no-wait --json`：
-> 先把验证链接发给用户、结束当前轮次，待用户确认授权后再用 `--device-code` 在后续步骤完成。
+> 易错点：`auth status` 不支持 `--format`/`--jq`，只支持 `--json` 和 `--verify`；
+> `base +record-list` 等子命令则**支持** `--format json --jq`。两者相反，别混用。
 
 ## Requirements 表字段结构
 
@@ -106,15 +105,15 @@ lark-cli base +base-create \
 
 ```bash
 # 单选字段
-lark-cli base +field-create --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --json '{"name":"Status","type":"single_select","property":{"options":[{"name":"TODO"},{"name":"IN_PROGRESS"},{"name":"DONE"}]}}'
 
 # 多行文本字段
-lark-cli base +field-create --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --json '{"name":"Description","type":"text"}'
 
 # 双向关联字段（Tasks 表的 Requirement 指向 Requirements 表）
-lark-cli base +field-create --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --json '{"name":"Requirement","type":"link","property":{"table_id":"'"$REQUIREMENTS_TABLE_ID"'"}}'
 ```
 
@@ -125,16 +124,23 @@ lark-cli base +field-create --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE
 > 命令以本机 `lark-cli base --help` 为准。读取用 `+record-list`，
 > 创建/更新统一用 `+record-upsert`（**无 `--record-id` 创建，有 `--record-id` 更新**）。
 > `--json` 是顶层字段映射，**不要再包一层 `fields`**。
+>
+> **身份（重要）**：下面所有 `lark-cli base` 示例为简洁省略了身份参数，**实际执行时每条都要追加**
+> `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a` 加载）。例如读取：
+> ```bash
+> lark-cli base +record-list --base-token "$LARK_APP_TOKEN" --table-id "$TASKS_TABLE_ID" \
+>   --as bot --profile "$LARK_PROFILE" --format json
+> ```
 
 ### 读取
 
 ```bash
 # 按状态查询任务
-lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --filter-json '{"logic":"and","conditions":[["Status","==","coding"]]}'
 
 # 按 ReqID 查需求记录（拿 record_id 用于关联）
-lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --filter-json '{"logic":"and","conditions":[["ReqID","==","RQ-003-auth"]]}' \
   --format json --jq '.data.items[0].record_id'
 ```
@@ -142,7 +148,7 @@ lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS
 ### 创建需求记录（Requirements 表）
 
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --json '{"ReqID":"RQ-003-auth","Title":"登录认证","Status":"TODO","Priority":"MVP","Description":"用户名密码登录","Features":"用户名密码登录\n刷新 Token\n退出登录","AcceptanceCriteria":"返回 JWT\n支持刷新 Token\n支持退出登录"}'
 ```
 
@@ -152,12 +158,12 @@ lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $REQUIREMEN
 
 ```bash
 # 1. 查 RQ 的 record_id
-REQ_REC=$(lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+REQ_REC=$(lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --filter-json '{"logic":"and","conditions":[["ReqID","==","RQ-003-auth"]]}' \
   --format json --jq '.data.items[0].record_id')
 
 # 2. 创建 Task，Requirement 写关联
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --json '{"TaskID":"TASK-001","Title":"实现登录接口","Status":"todo","Requirement":[{"id":"'"$REQ_REC"'"}],"Dependencies":"","Priority":"HIGH","FailCount":0,"Goal":"实现 JWT 登录","AcceptanceCriteria":"POST /login\n返回 JWT\n返回 RefreshToken","Modules":"AuthController\nAuthService"}'
 ```
 
@@ -165,16 +171,16 @@ lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABL
 
 ```bash
 # 更新任务状态
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> --json '{"Status":"review"}'
 
 # 同时更新多个字段（Reviewer 一次写入 Review 结果 + 状态）
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> \
   --json '{"Status":"coding","FailCount":1,"ReviewResult":"FAIL","ReviewRound":1,"ReviewProblems":"RefreshToken 未设过期\n缺少单元测试","ReviewSuggestions":"补充 Token 配置\n增加测试"}'
 
 # 更新需求状态
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --record-id <record_id> --json '{"Status":"DONE"}'
 ```
 

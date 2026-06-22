@@ -2,10 +2,10 @@
 
 ## 启动时读取
 
-- **登录预检（先于一切 lark-cli base 命令）**：先 `lark-cli auth status --json` 取 `.identities.user.tokenStatus`（**auth status 不支持 `--format`/`--jq`**，用 python 解析；token 持久化在 OS 凭据库、一周内自动续期，valid 即跳过登录、勿因命令报错就扫码），非 `valid` 才 `lark-cli auth login --domain base --no-wait --json` 完成登录认证（详见 docs/lark-base.md「登录预检」），认证有效后再继续。
+- **身份预检（先于一切 lark-cli base 命令）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。可选自检 `lark-cli auth status --json --profile "$LARK_PROFILE"` 看 `.identities.bot.status` 是否 `ready`（auth status 不支持 `--format`/`--jq`，用 python 解析）。报权限不足则提示用户去飞书后台申请 base scope + 把机器人加为表格协作者，详见 docs/lark-base.md「身份与登录预检」。
 - 查询当前 review 任务（记录字段即包含 Goal / AcceptanceCriteria / Modules 等全部信息，无需读文件）：
   ```bash
-  lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+  lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
     --filter-json '{"logic":"and","conditions":[["Status","==","review"]]}'
   ```
 - 记下该记录的 record_id、当前 FailCount、当前 ReviewRound（更新时要用）
@@ -38,28 +38,28 @@ Review 结果存在 Task 记录的字段里，**只保留最新一轮**（不再
 
 PASS：
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> \
   --json '{"Status":"done","ReviewResult":"PASS","ReviewRound":<上一轮+1>,"ReviewProblems":"","ReviewSuggestions":""}'
 ```
 
 FAIL（FailCount < 3）：
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> \
   --json '{"Status":"coding","FailCount":<FailCount+1>,"ReviewResult":"FAIL","ReviewRound":<上一轮+1>,"ReviewProblems":"问题1\n问题2","ReviewSuggestions":"建议1\n建议2"}'
 ```
 
 FAIL（FailCount ≥ 3）：
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> \
   --json '{"Status":"blocked","ReviewResult":"FAIL","ReviewRound":<上一轮+1>,"ReviewProblems":"问题1\n问题2","ReviewSuggestions":"建议1\n建议2"}'
 ```
 
 BLOCKED：
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> \
   --json '{"Status":"blocked","ReviewResult":"BLOCKED","ReviewRound":<上一轮+1>,"ReviewProblems":"冲突说明","ReviewSuggestions":"由 Planner 决定修改需求还是架构"}'
 ```

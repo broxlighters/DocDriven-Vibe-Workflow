@@ -2,17 +2,17 @@
 
 ## 启动时读取
 
-- **登录预检（先于一切 lark-cli base 命令）**：先 `lark-cli auth status --json` 取 `.identities.user.tokenStatus`（**auth status 不支持 `--format`/`--jq`**，用 python 解析；token 持久化在 OS 凭据库、一周内自动续期，valid 即跳过登录、勿因命令报错就扫码），非 `valid` 才 `lark-cli auth login --domain base --no-wait --json` 完成登录认证（详见 docs/lark-base.md「登录预检」），认证有效后再继续。
+- **身份预检（先于一切 lark-cli base 命令）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。可选自检 `lark-cli auth status --json --profile "$LARK_PROFILE"` 看 `.identities.bot.status` 是否 `ready`（auth status 不支持 `--format`/`--jq`，用 python 解析）。报权限不足则提示用户去飞书后台申请 base scope + 把机器人加为表格协作者，详见 docs/lark-base.md「身份与登录预检」。
 - docs/requirements.md
 - docs/architecture/（所有架构文档）
 - docs/decisions.md
 - 查询 Requirements 表了解所有需求（见 docs/lark-base.md 获取配置）：
   ```bash
-  lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID
+  lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID
   ```
 - 查询 Tasks 表了解当前任务状态：
   ```bash
-  lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID
+  lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID
   ```
 
 ## 职责
@@ -25,11 +25,11 @@
 4. `Requirement` 是双向关联字段，先查所属 RQ 的 record_id 再写入：
 
 ```bash
-REQ_REC=$(lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+REQ_REC=$(lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
   --filter-json '{"logic":"and","conditions":[["ReqID","==","RQ-XXX"]]}' \
   --format json --jq '.data.items[0].record_id')
 
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --json '{"TaskID":"TASK-XXX","Title":"...","Status":"todo","Requirement":[{"id":"'"$REQ_REC"'"}],"Dependencies":"","Priority":"HIGH","FailCount":0,"Goal":"...","AcceptanceCriteria":"条件1\n条件2","Modules":"模块1\n模块2"}'
 ```
 
@@ -39,7 +39,7 @@ lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABL
 2. 将就绪 Task 的记录更新为 Status=coding（同时最多保留 3 个 coding）
 
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> --json '{"Status":"coding"}'
 ```
 
@@ -49,7 +49,7 @@ lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABL
 
 1. 查询 Tasks 表中 `Requirement` 关联到该 RQ 的全部记录
    ```bash
-   lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+   lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
      --filter-json '{"logic":"and","conditions":[["Requirement","==","RQ-XXX"]]}'
    ```
 2. 按规则更新该 RQ 记录的 `Status` 字段：
@@ -57,7 +57,7 @@ lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABL
    - **IN_PROGRESS**：已拆出 Task，但仍有 Task 未完成
    - **TODO**：尚未拆解，或验收点尚未被 Task 完整覆盖
    ```bash
-   lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+   lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
      --record-id <rq_record_id> --json '{"Status":"DONE"}'
    ```
 
@@ -71,7 +71,7 @@ lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABL
 4. 将 Task 记录的 FailCount 重置为 0，Status 改为 todo
 
 ```bash
-lark-cli base +record-upsert --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
   --record-id <record_id> --json '{"Status":"todo","FailCount":0}'
 ```
 
