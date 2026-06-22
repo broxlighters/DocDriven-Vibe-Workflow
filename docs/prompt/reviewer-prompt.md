@@ -3,6 +3,7 @@
 ## 启动时读取
 
 - **身份预检（先于一切 lark-cli base 命令）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。自检 `.identities.bot.status` 是否 `ready`；若 `not_configured`（常见于换系统用户/沙箱账户，DPAPI 凭据解不开），先自举：`printf '%s' "$LARK_APP_SECRET" | lark-cli config init --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu` 再复检。报权限不足（scope）或 `code 1002`（token 错/未加协作者）则按提示排查，详见 docs/lark-base.md「身份与登录预检」。
+- **JSON 写入规范**：凡 `--json` 写入（`+record-upsert` 等）**不要内联 `--json '{...}'`**（PowerShell 会剥引号/拆参致写入失败）；先把 JSON 写到项目目录临时文件，用 `--json @./.lark_tmp.json` 传参，用完 `rm -f`。详见 docs/lark-base.md「JSON 写入」。
 - 查询当前 review 任务（记录字段即包含 Goal / AcceptanceCriteria / Modules 等全部信息，无需读文件）：
   ```bash
   lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \

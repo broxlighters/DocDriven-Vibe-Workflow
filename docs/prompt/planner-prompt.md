@@ -7,6 +7,7 @@
   - `app_scope_not_applied`（code 99991672）：app 没申请 base scope，提示用户去飞书后台申请并发布版本。
   - `code 1002 "note has been deleted"`：**不是真被删**，是 `LARK_APP_TOKEN` 配错、或机器人未被加为该多维表格协作者。先核对 `.env` 的 `LARK_APP_TOKEN` 与表 URL `/base/` 后那段是否一致，再确认机器人已是协作者。
   - 详见 docs/lark-base.md「身份与登录预检」。
+- **JSON 写入规范**：拆 Task / 建 RQ / 改状态等所有 `--json` 写入，**不要内联 `--json '{...}'`**（PowerShell 会剥引号、按空格拆参，导致写入失败或静默不创建）；一律先把 JSON 写到项目目录临时文件，再用 `--json @./.lark_tmp.json` 传参，用完 `rm -f`。删除类命令（`+record-delete`）需加 `--yes`。详见 docs/lark-base.md「JSON 写入」。
 - docs/requirements.md
 - docs/architecture/（所有架构文档）
 - docs/decisions.md

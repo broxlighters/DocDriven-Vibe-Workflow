@@ -26,6 +26,7 @@ fi
 - `BOT=ready` → 应用身份可用，直接进入「启动时读取」。**TAT 免扫码、自动续期，无需任何登录交互。**
 - 仍非 ready → 检查 `.env` 的 `LARK_PROFILE` / `LARK_APP_ID` / `LARK_APP_SECRET` 是否正确；**不要走扫码登录流程**。
 - 若 base 命令报 `app_scope_not_applied`（code 99991672）→ app 没申请 base scope；报 `code 1002 "note has been deleted"` → **不是真被删**，是 `LARK_APP_TOKEN` 配错或机器人未被加为该多维表格协作者。详见 docs/lark-base.md「身份与登录预检」。
+- **JSON 写入规范**：所有 `--json` 写入（状态流转 `+record-upsert` 等）**不要内联 `--json '{...}'`**（PowerShell 会剥引号/拆参致写入失败）；先把 JSON 写到项目目录临时文件，用 `--json @./.lark_tmp.json` 传参，用完 `rm -f`；删除类命令需 `--yes`。详见 docs/lark-base.md「JSON 写入」。
 
 ## 启动时读取
 
