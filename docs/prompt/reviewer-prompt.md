@@ -44,6 +44,26 @@ lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK
   --json '{"Status":"done","ReviewResult":"PASS","ReviewRound":<上一轮+1>,"ReviewProblems":"","ReviewSuggestions":""}'
 ```
 
+**PASS 后顺带更新所属 RQ 状态**（仅 PASS 时做；FAIL/BLOCKED 不动 RQ）：
+
+Task 标 done 后，查一下它所属 RQ 的其余 Task，把 RQ 状态往前推。
+
+1. 从当前 Task 记录的 `Requirement` 字段拿到所属 RQ 的 **record_id**。该字段值形如 `[{"id":"recXXXX"}]`，里面是 RQ 在 Requirements 表的 record_id（**注意：是 record_id，不是 `RQ-XXX` 文本**），记为 `<rq_record_id>`。
+2. 查该 RQ 关联的全部 Task——**关联字段必须按 record_id 过滤，用 ReqID 文本过滤会命中 0 条**：
+   ```bash
+   lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
+     --filter-json '{"logic":"and","conditions":[["Requirement","==","<rq_record_id>"]]}' --format json
+   ```
+3. 按规则更新该 RQ 记录的 `Status`（`--record-id` 用 `<rq_record_id>`）：
+   - **所有关联 Task 均为 done** → 把 RQ 标 `IN_PROGRESS`（**不要直接标 DONE**）。
+   - **仍有 Task 未 done** → 若 RQ 当前是 TODO，则标 `IN_PROGRESS`；已是 IN_PROGRESS 则不动。
+   ```bash
+   lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
+     --record-id <rq_record_id> --json '{"Status":"IN_PROGRESS"}'
+   ```
+
+> **为什么 Reviewer 不判 DONE**：DONE 要求「该 RQ 的所有验收点都已拆成 Task」，而 Reviewer 不掌握「是否还有未拆的功能点」——贸然标 DONE 会让漏拆的需求被误判为完成。**DONE 的最终判定仍由 Planner 负责**（见 planner-prompt.md「更新需求状态」）。Reviewer 只负责把 RQ 及时推到 IN_PROGRESS，让看板状态不滞后。
+
 FAIL（FailCount < 3）：
 ```bash
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
