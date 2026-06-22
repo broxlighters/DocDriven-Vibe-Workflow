@@ -11,11 +11,13 @@
 任何 `lark-cli base` 命令都依赖有效的用户授权 token。**启动后第一步，先检查 lark-cli 登录状态；未登录或 token 失效则优先完成登录认证，认证成功后再继续后续流程。**
 
 ```bash
-STATUS=$(lark-cli auth status --format json --jq '.identities.user.tokenStatus' 2>/dev/null)
+# auth status 只支持 --json（无 --format/--jq），用 python 取字段；token 持久化在 OS 凭据库、7 天内自动续期
+STATUS=$(lark-cli auth status --json 2>/dev/null \
+  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['user']['tokenStatus'])" 2>/dev/null)
 ```
 
-- `tokenStatus=valid` → 已登录，跳过登录，直接进入「启动时读取」。
-- 否则（未登录 / 失效 / 命令报错）→ 先登录认证：
+- `tokenStatus=valid` → 已登录，跳过登录，直接进入「启动时读取」。**token 是持久的，正常一周内无需重新扫码，不要因预检命令报错就去登录。**
+- 否则（未登录 / 失效）→ 先登录认证：
   ```bash
   lark-cli auth login --domain base --no-wait --json
   ```
