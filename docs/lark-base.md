@@ -148,6 +148,26 @@ lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_
 >   --as bot --profile "$LARK_PROFILE" --format json
 > ```
 
+### JSON 写入：一律用 `--json @文件`，不要内联（避免 PowerShell 转义坑）
+
+下面 `+record-upsert` / `+field-create` 的示例里写成内联 `--json '{...}'` 只是**为了展示 JSON 长什么样**。**实际执行写入时（尤其在 Windows PowerShell 下）不要内联**——PowerShell 会剥掉 JSON 里的双引号、按空格把参数拆开，导致写入失败或静默不创建记录。统一改用 lark-cli 原生支持的 `@文件` 语法：
+
+```bash
+# 1. 把 JSON 写到【项目目录下】的临时文件（@file 只接受当前目录的相对路径，不接受绝对路径或 /tmp）
+cat > ./.lark_tmp.json <<'EOF'
+{"ReqID":"RQ-003-auth","Title":"登录认证 含空格","Status":"TODO","Description":"支持 \"引号\" 与 空格"}
+EOF
+
+# 2. 用 @相对路径 传参（传的是文件名，零转义，bash / PowerShell 通用）
+lark-cli base +record-upsert --base-token "$LARK_APP_TOKEN" --table-id "$REQUIREMENTS_TABLE_ID" \
+  --as bot --profile "$LARK_PROFILE" --json @./.lark_tmp.json --format json
+
+# 3. 用完即删（临时文件已加入 .gitignore: .lark_tmp*.json）
+rm -f ./.lark_tmp.json
+```
+
+> 要点：① 文件**必须在项目目录内**、用 `./` 相对路径（`@/tmp/x.json` 或 `@C:\...` 会被拒：*--file must be a relative path within the current directory*）；② 删除类高危命令（如 `+record-delete`）需加 `--yes` 才会执行；③ `--json` 仍是顶层字段映射，不要包 `fields`。
+
 ### 读取
 
 ```bash
