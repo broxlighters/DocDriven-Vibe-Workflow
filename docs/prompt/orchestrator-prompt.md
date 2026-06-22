@@ -11,15 +11,21 @@
 所有 `lark-cli base` 命令统一用**应用（机器人）身份 TAT**，免扫码：每条命令追加 `--as bot --profile "$LARK_PROFILE"`（profile 名从 `.env` 读，勿写死）。**启动第一步，先加载 .env 并确认该 profile 的应用身份就绪。**
 
 ```bash
-set -a; source .env; set +a   # 拿到 LARK_PROFILE / LARK_APP_TOKEN 等
-# auth status 只支持 --json（无 --format/--jq），用 python 取 bot 身份状态
-BOT=$(lark-cli auth status --json --profile "$LARK_PROFILE" 2>/dev/null \
-  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['bot']['status'])" 2>/dev/null)
+set -a; source .env; set +a   # 拿到 LARK_PROFILE / LARK_APP_ID / LARK_APP_SECRET / LARK_APP_TOKEN 等
+bot_status() { lark-cli auth status --json --profile "$LARK_PROFILE" 2>/dev/null \
+  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['bot']['status'])" 2>/dev/null; }
+BOT=$(bot_status)
+# bot 未就绪 → 用 .env 凭据自举（跨用户/沙箱自动恢复），再复检
+if [ "$BOT" != "ready" ] && [ -n "$LARK_APP_ID" ] && [ -n "$LARK_APP_SECRET" ]; then
+  printf '%s' "$LARK_APP_SECRET" | lark-cli config init \
+    --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu >/dev/null 2>&1
+  BOT=$(bot_status)
+fi
 ```
 
 - `BOT=ready` → 应用身份可用，直接进入「启动时读取」。**TAT 免扫码、自动续期，无需任何登录交互。**
-- 否则 → 大概率是 `.env` 的 `LARK_PROFILE` 配置缺失，或该 profile 未 `config init`（app-id/app-secret）。提示用户检查，不要走扫码登录流程。
-- 若 base 命令报 `app_scope_not_applied` 或权限不足，说明该 app 还没在飞书后台申请 base scope、或机器人未被加为表格协作者——提示用户去后台配置。详见 docs/lark-base.md「身份与登录预检」。
+- 仍非 ready → 检查 `.env` 的 `LARK_PROFILE` / `LARK_APP_ID` / `LARK_APP_SECRET` 是否正确；**不要走扫码登录流程**。
+- 若 base 命令报 `app_scope_not_applied`（code 99991672）→ app 没申请 base scope；报 `code 1002 "note has been deleted"` → **不是真被删**，是 `LARK_APP_TOKEN` 配错或机器人未被加为该多维表格协作者。详见 docs/lark-base.md「身份与登录预检」。
 
 ## 启动时读取
 
