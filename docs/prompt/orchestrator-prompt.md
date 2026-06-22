@@ -6,38 +6,31 @@
 - 通过 lark-cli 查询和更新飞书多维表格中的需求（Requirements 表）与任务（Tasks 表）状态（配置见 docs/lark-base.md）
 - 执行 Analyst、Planner、Coder、Reviewer 的完整逻辑
 
-## 启动时：先做登录预检（最高优先，先于一切 Base 操作）
+## 启动时：先做身份预检（最高优先，先于一切 Base 操作）
 
-任何 `lark-cli base` 命令都依赖有效的用户授权 token。**启动后第一步，先检查 lark-cli 登录状态；未登录或 token 失效则优先完成登录认证，认证成功后再继续后续流程。**
+所有 `lark-cli base` 命令统一用**应用（机器人）身份 TAT**，免扫码：每条命令追加 `--as bot --profile "$LARK_PROFILE"`（profile 名从 `.env` 读，勿写死）。**启动第一步，先加载 .env 并确认该 profile 的应用身份就绪。**
 
 ```bash
-# auth status 只支持 --json（无 --format/--jq），用 python 取字段；token 持久化在 OS 凭据库、7 天内自动续期
-STATUS=$(lark-cli auth status --json 2>/dev/null \
-  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['user']['tokenStatus'])" 2>/dev/null)
+set -a; source .env; set +a   # 拿到 LARK_PROFILE / LARK_APP_TOKEN 等
+# auth status 只支持 --json（无 --format/--jq），用 python 取 bot 身份状态
+BOT=$(lark-cli auth status --json --profile "$LARK_PROFILE" 2>/dev/null \
+  | python -c "import sys,json;print(json.load(sys.stdin)['identities']['bot']['status'])" 2>/dev/null)
 ```
 
-- `tokenStatus=valid` → 已登录，跳过登录，直接进入「启动时读取」。**token 是持久的，正常一周内无需重新扫码，不要因预检命令报错就去登录。**
-- 否则（未登录 / 失效）→ 先登录认证：
-  ```bash
-  lark-cli auth login --domain base --no-wait --json
-  ```
-  把输出里的验证链接（或用 `lark-cli auth qrcode` 生成二维码）发给用户，**结束当前轮次**，
-  等用户在浏览器完成授权后，再用返回的 device_code 完成登录并继续：
-  ```bash
-  lark-cli auth login --device-code <device_code>
-  ```
-- 登录确认有效后，才进入下面的流程。详见 docs/lark-base.md「登录预检」。
+- `BOT=ready` → 应用身份可用，直接进入「启动时读取」。**TAT 免扫码、自动续期，无需任何登录交互。**
+- 否则 → 大概率是 `.env` 的 `LARK_PROFILE` 配置缺失，或该 profile 未 `config init`（app-id/app-secret）。提示用户检查，不要走扫码登录流程。
+- 若 base 命令报 `app_scope_not_applied` 或权限不足，说明该 app 还没在飞书后台申请 base scope、或机器人未被加为表格协作者——提示用户去后台配置。详见 docs/lark-base.md「身份与登录预检」。
 
 ## 启动时读取
 
 docs/ 下所有文件，重点关注：
 - 查询 Requirements 表了解所有需求：
   ```bash
-  lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID
+  lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID
   ```
 - 查询 Tasks 表各状态的任务数量（记录字段含目标/验收/最新一轮 Review）：
   ```bash
-  lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID
+  lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID
   ```
 
 ## 决策逻辑（每轮循环执行一次）
