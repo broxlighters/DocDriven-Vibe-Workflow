@@ -43,8 +43,15 @@ docs/ 下所有文件，重点关注：
 按优先级从高到低判断：
 
 0. Requirements 表为空（无任何 RQ 记录）
-   → 以 Analyst 身份处理：与用户对话收集需求，生成 requirements.md 并在 Requirements 表创建 RQ 记录
+   → 以 Analyst 身份处理（开局模式）：先读 docs/discovery.md（已讨论的内容不重复提问，只补问空缺），
+     与用户对话收集需求并边谈边追加到 discovery.md，最终生成 requirements.md 并在 Requirements 表创建 RQ 记录
    → 若在自动化环境中无法交互，暂停并提示用户先手动填写需求
+
+0.5 用户在项目进行中显式提出新增 / 变更需求（Requirements 表已非空）
+   → 以 Analyst 身份处理（增量模式）：读 discovery.md + 现有 RQ，只就新需求与用户讨论，
+     追加到 discovery.md，并为新模块新建 RQ 记录（编号递增，Status=TODO），不动旧 RQ
+   → 谈清并建好新 RQ 后，回到常规循环；新 RQ 的拆 Task 与在途任务冲突处理由 Planner（步骤 1/5）接手
+   → 此条仅在用户明确提出新需求时触发；无新需求时跳过，继续下面的循环
 
 1. Tasks 表中 Status=blocked 有记录
    → 以 Planner 身份处理：修改 Requirements 表记录或 docs/architecture/，
