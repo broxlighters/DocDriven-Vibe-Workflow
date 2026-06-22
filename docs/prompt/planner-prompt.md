@@ -52,10 +52,10 @@ lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK
 
 一个 RQ 通常被拆成多个 Task，**只有该 RQ 关联的所有 Task 都完成，RQ 才算完成**。每次启动时，对每个 RQ 维护其 `Status` 字段：
 
-1. 查询 Tasks 表中 `Requirement` 关联到该 RQ 的全部记录
+1. 查询 Tasks 表中 `Requirement` 关联到该 RQ 的全部记录。**关联字段必须按该 RQ 的 record_id 过滤**（`<rq_record_id>` 来自 Requirements 表查询；用 `RQ-XXX` 文本过滤会命中 0 条）：
    ```bash
    lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-     --filter-json '{"logic":"and","conditions":[["Requirement","==","RQ-XXX"]]}'
+     --filter-json '{"logic":"and","conditions":[["Requirement","==","<rq_record_id>"]]}'
    ```
 2. 按规则更新该 RQ 记录的 `Status` 字段：
    - **DONE**：该 RQ 已完整拆解（不会再产生新 Task）**且** 关联的所有 Task 均为 Status=done
