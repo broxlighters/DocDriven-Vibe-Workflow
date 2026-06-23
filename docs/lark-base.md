@@ -117,20 +117,33 @@ lark-cli base +base-create \
 
 ## 一次性建表（首次配置）
 
-字段可用 `lark-cli base +field-create` 创建。`single_select` 也可写成 `{"type":"select","multiple":false,...}`。
+字段可用 `lark-cli base +field-create` 创建。`single_select` 也可写成 `{"type":"select","multiple":false,...}`。`--json` 同样走 `@文件`（理由见下节「JSON 参数」）：
 
 ```bash
 # 单选字段
+cat > ./.lark_tmp.json <<'EOF'
+{"name":"Status","type":"single_select","property":{"options":[{"name":"TODO"},{"name":"IN_PROGRESS"},{"name":"DONE"}]}}
+EOF
 lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --json '{"name":"Status","type":"single_select","property":{"options":[{"name":"TODO"},{"name":"IN_PROGRESS"},{"name":"DONE"}]}}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 
 # 多行文本字段
+cat > ./.lark_tmp.json <<'EOF'
+{"name":"Description","type":"text"}
+EOF
 lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --json '{"name":"Description","type":"text"}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 
 # 双向关联字段（Tasks 表的 Requirement 指向 Requirements 表）
+# heredoc 不加引号，$REQUIREMENTS_TABLE_ID 在写文件时展开成字面 table_id
+cat > ./.lark_tmp.json <<EOF
+{"name":"Requirement","type":"link","property":{"table_id":"$REQUIREMENTS_TABLE_ID"}}
+EOF
 lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --json '{"name":"Requirement","type":"link","property":{"table_id":"'"$REQUIREMENTS_TABLE_ID"'"}}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 > `link` 字段创建后，被指向的表（Requirements）会自动获得反向关联列。
@@ -148,44 +161,62 @@ lark-cli base +field-create --as bot --profile $LARK_PROFILE --base-token $LARK_
 >   --as bot --profile "$LARK_PROFILE" --format json
 > ```
 
-### JSON 写入：一律用 `--json @文件`，不要内联（避免 PowerShell 转义坑）
+### JSON 参数：`--json` 与 `--filter-json` 一律用 `@文件`，不要内联（避免 PowerShell 转义坑）
 
-下面 `+record-upsert` / `+field-create` 的示例里写成内联 `--json '{...}'` 只是**为了展示 JSON 长什么样**。**实际执行写入时（尤其在 Windows PowerShell 下）不要内联**——PowerShell 会剥掉 JSON 里的双引号、按空格把参数拆开，导致写入失败或静默不创建记录。统一改用 lark-cli 原生支持的 `@文件` 语法：
+凡是带 JSON 值的参数——**写入用的 `--json`** 和 **查询用的 `--filter-json`**——下面示例里写成内联 `'{...}'` 只是**为了展示 JSON 长什么样**。**实际执行时（尤其在 Windows PowerShell 下）不要内联**——PowerShell 会剥掉 JSON 里的双引号、按空格把参数拆开，导致写入失败、静默不创建记录，或查询第一次必失败后再回退。统一改用 lark-cli 原生支持的 `@文件` 语法。约定两个临时文件名，避免同一流程里查询与写入互相覆盖：**写入用 `./.lark_tmp.json`，查询用 `./.lark_filter.json`**。
 
 ```bash
+# —— 写入（--json）——
 # 1. 把 JSON 写到【项目目录下】的临时文件（@file 只接受当前目录的相对路径，不接受绝对路径或 /tmp）
 cat > ./.lark_tmp.json <<'EOF'
 {"ReqID":"RQ-003-auth","Title":"登录认证 含空格","Status":"TODO","Description":"支持 \"引号\" 与 空格"}
 EOF
-
 # 2. 用 @相对路径 传参（传的是文件名，零转义，bash / PowerShell 通用）
 lark-cli base +record-upsert --base-token "$LARK_APP_TOKEN" --table-id "$REQUIREMENTS_TABLE_ID" \
   --as bot --profile "$LARK_PROFILE" --json @./.lark_tmp.json --format json
-
-# 3. 用完即删（临时文件已加入 .gitignore: .lark_tmp*.json）
+# 3. 用完即删
 rm -f ./.lark_tmp.json
+
+# —— 查询（--filter-json）——
+cat > ./.lark_filter.json <<'EOF'
+{"logic":"and","conditions":[["Status","==","coding"]]}
+EOF
+lark-cli base +record-list --base-token "$LARK_APP_TOKEN" --table-id "$TASKS_TABLE_ID" \
+  --as bot --profile "$LARK_PROFILE" --filter-json @./.lark_filter.json --format json
+rm -f ./.lark_filter.json
 ```
 
-> 要点：① 文件**必须在项目目录内**、用 `./` 相对路径（`@/tmp/x.json` 或 `@C:\...` 会被拒：*--file must be a relative path within the current directory*）；② 删除类高危命令（如 `+record-delete`）需加 `--yes` 才会执行；③ `--json` 仍是顶层字段映射，不要包 `fields`。
+> 要点：① 文件**必须在项目目录内**、用 `./` 相对路径（`@/tmp/x.json` 或 `@C:\...` 会被拒：*--file must be a relative path within the current directory*）；② 删除类高危命令（如 `+record-delete`）需加 `--yes` 才会执行；③ `--json` 仍是顶层字段映射，不要包 `fields`；④ 临时文件均已加入 .gitignore（`.lark_*.json`）。
 
-### 读取
+### 读取（`--filter-json` 走 `@./.lark_filter.json`）
 
 ```bash
 # 按状态查询任务
+cat > ./.lark_filter.json <<'EOF'
+{"logic":"and","conditions":[["Status","==","coding"]]}
+EOF
 lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --filter-json '{"logic":"and","conditions":[["Status","==","coding"]]}'
+  --filter-json @./.lark_filter.json --format json
+rm -f ./.lark_filter.json
 
 # 按 ReqID 查需求记录（拿 record_id 用于关联）
+cat > ./.lark_filter.json <<'EOF'
+{"logic":"and","conditions":[["ReqID","==","RQ-003-auth"]]}
+EOF
 lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --filter-json '{"logic":"and","conditions":[["ReqID","==","RQ-003-auth"]]}' \
-  --format json --jq '.data.items[0].record_id'
+  --filter-json @./.lark_filter.json --format json --jq '.data.items[0].record_id'
+rm -f ./.lark_filter.json
 ```
 
 ### 创建需求记录（Requirements 表）
 
 ```bash
+cat > ./.lark_tmp.json <<'EOF'
+{"ReqID":"RQ-003-auth","Title":"登录认证","Status":"TODO","Priority":"MVP","Description":"用户名密码登录","Features":"用户名密码登录\n刷新 Token\n退出登录","AcceptanceCriteria":"返回 JWT\n支持刷新 Token\n支持退出登录"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --json '{"ReqID":"RQ-003-auth","Title":"登录认证","Status":"TODO","Priority":"MVP","Description":"用户名密码登录","Features":"用户名密码登录\n刷新 Token\n退出登录","AcceptanceCriteria":"返回 JWT\n支持刷新 Token\n支持退出登录"}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 ### 创建任务记录（Tasks 表，含 Requirement 关联）
@@ -194,30 +225,50 @@ lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK
 
 ```bash
 # 1. 查 RQ 的 record_id
+cat > ./.lark_filter.json <<'EOF'
+{"logic":"and","conditions":[["ReqID","==","RQ-003-auth"]]}
+EOF
 REQ_REC=$(lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --filter-json '{"logic":"and","conditions":[["ReqID","==","RQ-003-auth"]]}' \
-  --format json --jq '.data.items[0].record_id')
+  --filter-json @./.lark_filter.json --format json --jq '.data.items[0].record_id')
+rm -f ./.lark_filter.json
 
-# 2. 创建 Task，Requirement 写关联
+# 2. 创建 Task，Requirement 写关联（$REQ_REC 在写文件时展开，文件里就是字面 record_id）
+cat > ./.lark_tmp.json <<EOF
+{"TaskID":"TASK-001","Title":"实现登录接口","Status":"todo","Requirement":[{"id":"$REQ_REC"}],"Dependencies":"","Priority":"HIGH","FailCount":0,"Goal":"实现 JWT 登录","AcceptanceCriteria":"POST /login\n返回 JWT\n返回 RefreshToken","Modules":"AuthController\nAuthService"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --json '{"TaskID":"TASK-001","Title":"实现登录接口","Status":"todo","Requirement":[{"id":"'"$REQ_REC"'"}],"Dependencies":"","Priority":"HIGH","FailCount":0,"Goal":"实现 JWT 登录","AcceptanceCriteria":"POST /login\n返回 JWT\n返回 RefreshToken","Modules":"AuthController\nAuthService"}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
+
+> 注意第 2 步 heredoc 用的是不带引号的 `EOF`（`<<EOF` 而非 `<<'EOF'`），这样 `$REQ_REC` 才会展开成真实 record_id；JSON 里没有其它 `$`，所以安全。
 
 ### 更新记录（带 `--record-id`）
 
 ```bash
 # 更新任务状态
+cat > ./.lark_tmp.json <<'EOF'
+{"Status":"review"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <record_id> --json '{"Status":"review"}'
+  --record-id <record_id> --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 
 # 同时更新多个字段（Reviewer 一次写入 Review 结果 + 状态）
+cat > ./.lark_tmp.json <<'EOF'
+{"Status":"coding","FailCount":1,"ReviewResult":"FAIL","ReviewRound":1,"ReviewProblems":"RefreshToken 未设过期\n缺少单元测试","ReviewSuggestions":"补充 Token 配置\n增加测试"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <record_id> \
-  --json '{"Status":"coding","FailCount":1,"ReviewResult":"FAIL","ReviewRound":1,"ReviewProblems":"RefreshToken 未设过期\n缺少单元测试","ReviewSuggestions":"补充 Token 配置\n增加测试"}'
+  --record-id <record_id> --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 
 # 更新需求状态
+cat > ./.lark_tmp.json <<'EOF'
+{"Status":"DONE"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --record-id <record_id> --json '{"Status":"DONE"}'
+  --record-id <record_id> --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 > 多行文本字段用 `\n` 分隔多条内容。

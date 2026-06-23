@@ -76,7 +76,7 @@ MVP 范围：模块一、模块二
 
 ### 第三阶段：输出（必须用工具/命令实际执行）
 
-> **身份预检（在执行任何 lark-cli base 命令前）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。自检 `.identities.bot.status` 是否 `ready`；若 `not_configured`（常见于换系统用户/沙箱账户，DPAPI 凭据解不开），先自举：`printf '%s' "$LARK_APP_SECRET" | lark-cli config init --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu` 再复检。报权限不足（scope）或 `code 1002`（token 错/未加协作者）则按提示排查，详见 docs/lark-base.md「身份与登录预检」。认证就绪后再创建 RQ 记录。**写 RQ 时凡 `--json` 不要内联**（PowerShell 会剥引号/拆参致写入失败）：先把 JSON 写到项目目录临时文件，用 `--json @./.lark_tmp.json`，用完 `rm -f`，详见 docs/lark-base.md「JSON 写入」。
+> **身份预检（在执行任何 lark-cli base 命令前）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。自检 `.identities.bot.status` 是否 `ready`；若 `not_configured`（常见于换系统用户/沙箱账户，DPAPI 凭据解不开），先自举：`printf '%s' "$LARK_APP_SECRET" | lark-cli config init --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu` 再复检。报权限不足（scope）或 `code 1002`（token 错/未加协作者）则按提示排查，详见 docs/lark-base.md「身份与登录预检」。认证就绪后再创建 RQ 记录。**写 RQ 的 `--json`（以及任何按字段过滤的 `--filter-json`）都不要内联**（PowerShell 会剥引号/拆参致写入失败或查询先失败再回退）：先把 JSON 写到项目目录临时文件，用 `@文件` 传参，用完 `rm -f`；**写入用 `@./.lark_tmp.json`，查询用 `@./.lark_filter.json`**。详见 docs/lark-base.md「JSON 参数」。
 
 **0. 定稿并归档 docs/discovery.md**
 
@@ -111,8 +111,12 @@ xxx
 表配置和字段见 `docs/lark-base.md`。
 
 ```bash
+cat > ./.lark_tmp.json <<'EOF'
+{"ReqID":"RQ-001-user","Title":"用户管理","Status":"TODO","Priority":"MVP","Description":"管理用户的增删改查","Features":"创建用户\n禁用用户\n重置密码","AcceptanceCriteria":"支持分页查询\n密码加密存储\n禁用后无法登录"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --json '{"ReqID":"RQ-001-user","Title":"用户管理","Status":"TODO","Priority":"MVP","Description":"管理用户的增删改查","Features":"创建用户\n禁用用户\n重置密码","AcceptanceCriteria":"支持分页查询\n密码加密存储\n禁用后无法登录"}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 - `Priority` 取 `MVP` 或 `迭代`
