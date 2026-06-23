@@ -7,7 +7,7 @@
   - `app_scope_not_applied`（code 99991672）：app 没申请 base scope，提示用户去飞书后台申请并发布版本。
   - `code 1002 "note has been deleted"`：**不是真被删**，是 `LARK_APP_TOKEN` 配错、或机器人未被加为该多维表格协作者。先核对 `.env` 的 `LARK_APP_TOKEN` 与表 URL `/base/` 后那段是否一致，再确认机器人已是协作者。
   - 详见 docs/lark-base.md「身份与登录预检」。
-- **JSON 写入规范**：拆 Task / 建 RQ / 改状态等所有 `--json` 写入，**不要内联 `--json '{...}'`**（PowerShell 会剥引号、按空格拆参，导致写入失败或静默不创建）；一律先把 JSON 写到项目目录临时文件，再用 `--json @./.lark_tmp.json` 传参，用完 `rm -f`。删除类命令（`+record-delete`）需加 `--yes`。详见 docs/lark-base.md「JSON 写入」。
+- **JSON 参数规范**：拆 Task / 建 RQ / 改状态的写入（`--json`）**和**按字段过滤的查询（`--filter-json`），**都不要内联 `'{...}'`**（PowerShell 会剥引号、按空格拆参，导致写入失败、静默不创建，或查询第一次必失败后回退）；一律先把 JSON 写到项目目录临时文件，再用 `@文件` 传参，用完 `rm -f`。**写入用 `@./.lark_tmp.json`，查询用 `@./.lark_filter.json`**。删除类命令（`+record-delete`）需加 `--yes`。详见 docs/lark-base.md「JSON 参数」。
 - docs/requirements.md
 - docs/architecture/（所有架构文档）
 - docs/decisions.md
@@ -30,12 +30,20 @@
 4. `Requirement` 是双向关联字段，先查所属 RQ 的 record_id 再写入：
 
 ```bash
+cat > ./.lark_filter.json <<'EOF'
+{"logic":"and","conditions":[["ReqID","==","RQ-XXX"]]}
+EOF
 REQ_REC=$(lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --filter-json '{"logic":"and","conditions":[["ReqID","==","RQ-XXX"]]}' \
-  --format json --jq '.data.items[0].record_id')
+  --filter-json @./.lark_filter.json --format json --jq '.data.items[0].record_id')
+rm -f ./.lark_filter.json
 
+# $REQ_REC 在写文件时展开成字面 record_id（heredoc 不加引号）
+cat > ./.lark_tmp.json <<EOF
+{"TaskID":"TASK-XXX","Title":"...","Status":"todo","Requirement":[{"id":"$REQ_REC"}],"Dependencies":"","Priority":"HIGH","FailCount":0,"Goal":"...","AcceptanceCriteria":"条件1\n条件2","Modules":"模块1\n模块2"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --json '{"TaskID":"TASK-XXX","Title":"...","Status":"todo","Requirement":[{"id":"'"$REQ_REC"'"}],"Dependencies":"","Priority":"HIGH","FailCount":0,"Goal":"...","AcceptanceCriteria":"条件1\n条件2","Modules":"模块1\n模块2"}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 ### 分配任务
@@ -44,8 +52,12 @@ lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK
 2. 将就绪 Task 的记录更新为 Status=coding（同时最多保留 3 个 coding）
 
 ```bash
+cat > ./.lark_tmp.json <<'EOF'
+{"Status":"coding"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <record_id> --json '{"Status":"coding"}'
+  --record-id <record_id> --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 ### 更新需求状态
@@ -54,16 +66,24 @@ lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK
 
 1. 查询 Tasks 表中 `Requirement` 关联到该 RQ 的全部记录。**关联字段必须按该 RQ 的 record_id 过滤**（`<rq_record_id>` 来自 Requirements 表查询；用 `RQ-XXX` 文本过滤会命中 0 条）：
    ```bash
+   cat > ./.lark_filter.json <<'EOF'
+   {"logic":"and","conditions":[["Requirement","==","<rq_record_id>"]]}
+   EOF
    lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-     --filter-json '{"logic":"and","conditions":[["Requirement","==","<rq_record_id>"]]}'
+     --filter-json @./.lark_filter.json --format json
+   rm -f ./.lark_filter.json
    ```
 2. 按规则更新该 RQ 记录的 `Status` 字段：
    - **DONE**：该 RQ 已完整拆解（不会再产生新 Task）**且** 关联的所有 Task 均为 Status=done
    - **IN_PROGRESS**：已拆出 Task，但仍有 Task 未完成
    - **TODO**：尚未拆解，或验收点尚未被 Task 完整覆盖
    ```bash
+   cat > ./.lark_tmp.json <<'EOF'
+   {"Status":"DONE"}
+   EOF
    lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-     --record-id <rq_record_id> --json '{"Status":"DONE"}'
+     --record-id <rq_record_id> --json @./.lark_tmp.json --format json
+   rm -f ./.lark_tmp.json
    ```
 
 > 注意：仅凭「已拆的 Task 都 done」不足以判定 DONE——必须先确认该 RQ 的所有验收点都已拆成 Task，避免漏拆的功能点被误判为完成。
@@ -76,8 +96,12 @@ lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK
 4. 将 Task 记录的 FailCount 重置为 0，Status 改为 todo
 
 ```bash
+cat > ./.lark_tmp.json <<'EOF'
+{"Status":"todo","FailCount":0}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_ID \
-  --record-id <record_id> --json '{"Status":"todo","FailCount":0}'
+  --record-id <record_id> --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 ## Task 字段（全部存于 Tasks 表，无本地文件）

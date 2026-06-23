@@ -1,4 +1,4 @@
 .env
 
-# lark-cli --json @file 的临时 JSON（用完即删，防误提交）
-.lark_tmp*.json
+# lark-cli --json / --filter-json @file 的临时 JSON（用完即删，防误提交）
+.lark_*.json

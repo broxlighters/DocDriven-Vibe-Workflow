@@ -23,7 +23,7 @@
 Analyst 不是只在开局跑一次——项目跑起来后，用户随时可以再叫 Analyst 谈新增或变更的需求。此时：
 
 - **先读「项目共识」区**对齐项目背景（要解决的问题、目标用户、技术约束），新需求的讨论与落地都不得与之冲突；这正是首次讨论沉淀下来供后续参考的共识。若新需求要求调整某项共识，就地更新该区并在 decisions.md 记一笔。
-- **不从头重问**已确认的需求。先查 Requirements 表已有 RQ、读 discovery.md（含文末「已沉淀需求索引」）建立现状认知；索引里的模块视为已定稿，不再讨论，除非用户明确要变更它。
+- **不从头重问**已确认的需求。先查 Requirements 表已有 RQ 建立现状认知（已定稿需求的真相只在该表，discovery.md 不再留索引），再读 discovery.md 看「项目共识」与仍未决的「讨论稿」；Requirements 表里已有的模块视为已定稿，不再讨论，除非用户明确要变更它。
 - **只就用户本次提出的新增/变更部分讨论**，把它作为新模块追加到「讨论稿」区（标 🟡，谈清后标 ✅）。
 - 输出阶段**只为新模块新建 RQ**（编号在现有最大号之后递增，如已有到 RQ-003 则新建 `RQ-004-xxx`，`Status=TODO`），**不修改、不删除旧 RQ**。
 - discovery.md 不覆盖旧内容，**在对应小节追加**新模块条目。
@@ -76,19 +76,18 @@ MVP 范围：模块一、模块二
 
 ### 第三阶段：输出（必须用工具/命令实际执行）
 
-> **身份预检（在执行任何 lark-cli base 命令前）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。自检 `.identities.bot.status` 是否 `ready`；若 `not_configured`（常见于换系统用户/沙箱账户，DPAPI 凭据解不开），先自举：`printf '%s' "$LARK_APP_SECRET" | lark-cli config init --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu` 再复检。报权限不足（scope）或 `code 1002`（token 错/未加协作者）则按提示排查，详见 docs/lark-base.md「身份与登录预检」。认证就绪后再创建 RQ 记录。**写 RQ 时凡 `--json` 不要内联**（PowerShell 会剥引号/拆参致写入失败）：先把 JSON 写到项目目录临时文件，用 `--json @./.lark_tmp.json`，用完 `rm -f`，详见 docs/lark-base.md「JSON 写入」。
+> **身份预检（在执行任何 lark-cli base 命令前）**：所有 base 命令用应用身份 TAT、免扫码——每条追加 `--as bot --profile "$LARK_PROFILE"`（先 `set -a; source .env; set +a`，profile 名从 .env 取、勿写死）。自检 `.identities.bot.status` 是否 `ready`；若 `not_configured`（常见于换系统用户/沙箱账户，DPAPI 凭据解不开），先自举：`printf '%s' "$LARK_APP_SECRET" | lark-cli config init --name "$LARK_PROFILE" --app-id "$LARK_APP_ID" --app-secret-stdin --brand feishu` 再复检。报权限不足（scope）或 `code 1002`（token 错/未加协作者）则按提示排查，详见 docs/lark-base.md「身份与登录预检」。认证就绪后再创建 RQ 记录。**写 RQ 的 `--json`（以及任何按字段过滤的 `--filter-json`）都不要内联**（PowerShell 会剥引号/拆参致写入失败或查询先失败再回退）：先把 JSON 写到项目目录临时文件，用 `@文件` 传参，用完 `rm -f`；**写入用 `@./.lark_tmp.json`，查询用 `@./.lark_filter.json`**。详见 docs/lark-base.md「JSON 参数」。
 
 **0. 定稿并归档 docs/discovery.md**
 
-需求确认、对应 RQ 建好后，把这些**已沉淀**的内容从「讨论稿」各小节**移除**，在文末「已沉淀需求索引」各留一行 `- ✅ 模块名 → RQ-编号`。
+需求确认、对应 RQ 建好后，把这些**已沉淀**的内容从「讨论稿」各小节**移除**（已定稿需求的真相在 Requirements 表，discovery.md 不再为它留索引）。
 
 ```text
 项目共识区              保留不动（长期常驻的项目背景）
 讨论稿区（# 讨论稿）     只留仍未决（🟡/❓/待澄清）的需求
-已沉淀需求索引          已建 RQ 的需求各一行索引，详情看 Requirements 表
 ```
 
-归档只清「讨论稿」区，**不要动「项目共识」区**——问题/用户/技术约束是长期背景，后续新增需求要参考。这样 discovery.md 只随**未决需求**增减，不随项目历史无限膨胀。若本轮所有讨论都已沉淀，讨论稿区回到空模板即可。
+归档只清「讨论稿」区，**不要动「项目共识」区**——问题/用户/技术约束是长期背景，后续新增需求要参考。这样 discovery.md 只随**未决需求**增减，不随项目历史无限膨胀。若本轮所有讨论都已沉淀，讨论稿区回到空模板即可。增量模式下要知道「已定稿了哪些模块、别再讨论」，查 Requirements 表已有 RQ 即可。
 
 **1. 写入 docs/requirements.md（项目总目标）**
 
@@ -111,8 +110,12 @@ xxx
 表配置和字段见 `docs/lark-base.md`。
 
 ```bash
+cat > ./.lark_tmp.json <<'EOF'
+{"ReqID":"RQ-001-user","Title":"用户管理","Status":"TODO","Priority":"MVP","Description":"管理用户的增删改查","Features":"创建用户\n禁用用户\n重置密码","AcceptanceCriteria":"支持分页查询\n密码加密存储\n禁用后无法登录"}
+EOF
 lark-cli base +record-upsert --as bot --profile $LARK_PROFILE --base-token $LARK_APP_TOKEN --table-id $REQUIREMENTS_TABLE_ID \
-  --json '{"ReqID":"RQ-001-user","Title":"用户管理","Status":"TODO","Priority":"MVP","Description":"管理用户的增删改查","Features":"创建用户\n禁用用户\n重置密码","AcceptanceCriteria":"支持分页查询\n密码加密存储\n禁用后无法登录"}'
+  --json @./.lark_tmp.json --format json
+rm -f ./.lark_tmp.json
 ```
 
 - `Priority` 取 `MVP` 或 `迭代`
