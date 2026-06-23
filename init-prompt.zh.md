@@ -142,7 +142,7 @@ API:        /api/user
 
 内容（完整粘贴）：
 
-> **Markdown 是记忆，Git 是数据库，飞书多维表格是状态机，Agent 是执行者。**
+> **Markdown 是记忆，飞书多维表格既是状态机也是数据库，Git 管代码版本，Agent 是执行者。**
 
 > 需求和任务的状态由飞书多维表格（Lark Base）两张表管理：
 > Requirements 表（每行一个 RQ）与 Tasks 表（每行一个 Task，通过双向关联指向 RQ）。
@@ -518,7 +518,7 @@ lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_
 
 # Vibe-Coding 工作流
 
-> Markdown 是记忆，Git 是数据库，飞书多维表格是状态机，Agent 是执行者。
+> Markdown 是记忆，飞书多维表格既是状态机也是数据库，Git 管代码版本，Agent 是执行者。
 
 四个 Agent 协作完成开发任务，项目总目标/架构/规范由 Markdown 维护，逐条需求和任务状态由飞书多维表格维护，均不依赖对话历史。
 

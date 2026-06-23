@@ -1,8 +1,10 @@
 [中文](README.zh.md) | **English**
 
-# Vibe-Coding Workflow
+# Baton
 
-> Markdown is memory, Git is the database, Lark Base is the state machine, Agents are the executors.
+**A four-agent vibe-coding workflow where Markdown is memory and Lark Base is the state machine — agents pass the task like a relay baton, the Base is the track.**
+
+> Markdown is memory, Lark Base is both the state machine and the database, Git versions the code, Agents are the executors.
 
 Four agents collaborate on development tasks. Project goals/architecture/conventions live in Markdown; per-requirement and task state live in a Lark Base (multi-dimensional table) — neither relies on chat history.
 
@@ -79,9 +81,11 @@ The same skills are also packaged under repo-level `.agents/skills/` following t
 
 ## Quick Start
 
+> In every step below, "paste `docs/prompt/xxx-prompt.md`" can be replaced by triggering the matching skill: `/analyst` `/planner` `/coder` `/reviewer` in Claude Code, or `$analyst` etc. in Codex. **Either way, `/clear` or start a new session first** — see "Core principle" at the bottom.
+
 **Step 1: Run the Analyst (optional but recommended)**
 
-New conversation → paste `docs/prompt/analyst-prompt.md` → describe your project idea
+New conversation → paste `docs/prompt/analyst-prompt.md` (or trigger `/analyst`) → describe your project idea
 
 The Analyst will ask questions, generate `docs/requirements.md`, and create one RQ record per module in the Requirements table automatically.
 
@@ -142,4 +146,7 @@ BLOCKED              → Status=blocked
 
 > State transitions are performed via `lark-cli base +record-upsert --record-id ...` on the Base's Status field — no files are moved.
 
-**Core principle: every Agent starts a fresh conversation with `/clear`. No reliance on chat history.**
+**Core principle: every Agent starts from a clean context. No reliance on chat history.**
+
+- **Manual mode (single roles):** before each role, `/clear` (Claude Code) or open a new session (Codex), then trigger the skill / paste the prompt. The skills only save you the paste — they do **not** clear context, so switching roles in the same session would leak the previous role's reasoning.
+- **Auto mode (orchestrator):** no manual `/clear` needed — start it once. The Claude Code version spawns each role as a sub-agent (isolated context by construction); the Codex version drives roles sequentially in one session and compensates by re-querying the Base every round and treating records as the only source of truth.

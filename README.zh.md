@@ -1,8 +1,10 @@
 **中文** | [English](README.md)
 
-# Vibe-Coding 工作流
+# Baton
 
-> Markdown 是记忆，Git 是数据库，飞书多维表格是状态机，Agent 是执行者。
+**四 Agent 接力的 vibe-coding 工作流：Markdown 是记忆，飞书多维表格是状态机——Agent 像接力棒一样传递任务，多维表格就是赛道。**
+
+> Markdown 是记忆，飞书多维表格既是状态机也是数据库，Git 管代码版本，Agent 是执行者。
 
 四个 Agent 协作完成开发任务，项目总目标/架构/规范由 Markdown 维护，逐条需求和任务状态由飞书多维表格维护，均不依赖对话历史。
 
@@ -79,9 +81,11 @@ Agent 通过 lark-cli 读取和更新记录。
 
 ## 快速开始
 
+> 下面各步的「粘贴 `docs/prompt/xxx-prompt.md`」都可换成触发对应 Skill：Claude Code 用 `/analyst` `/planner` `/coder` `/reviewer`，Codex 用 `$analyst` 等。**两种方式都要先 `/clear` 或新开会话**——见文末「核心原则」。
+
 **第一步：启动 Analyst（推荐）**
 
-新开对话 → 粘贴 `docs/prompt/analyst-prompt.md` → 描述你的项目想法
+新开对话 → 粘贴 `docs/prompt/analyst-prompt.md`（或触发 `/analyst`）→ 描述你的项目想法
 
 Analyst 会通过对话收集需求，自动生成 `docs/requirements.md`，并在 Requirements 表为每个模块创建一条 RQ 记录。
 
@@ -145,4 +149,7 @@ BLOCKED ─────────────→ Status=blocked
 
 > 状态流转通过 `lark-cli base +record-upsert --record-id ...` 更新飞书多维表格的 Status 字段完成，不再移动文件。
 
-**核心原则：每个 Agent 都新开对话，执行前 `/clear`，不依赖聊天历史。**
+**核心原则：每个 Agent 都从干净的上下文开始，不依赖聊天历史。**
+
+- **手动模式（单独调角色）**：每切一个角色前，先 `/clear`（Claude Code）或新开会话（Codex），再触发对应 skill / 粘贴 prompt。Skill 只省去「粘贴 prompt」这一步，**不会清空上下文**——在同一会话里连着切角色会让上一角色的推理串味。
+- **自动模式（orchestrator）**：无需手动 `/clear`，启动一次即可。Claude Code 版每轮派生子 agent，天然独立 context；Codex 版在同一会话串行扮演各角色，靠「每轮重新查 Base、以记录为唯一真相」来弥补隔离。

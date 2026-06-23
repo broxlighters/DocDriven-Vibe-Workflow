@@ -142,7 +142,7 @@ Content:
 
 Content (paste in full):
 
-> **Markdown is memory, Git is the database, Lark Base is the state machine, Agents are the executors.**
+> **Markdown is memory, Lark Base is both the state machine and the database, Git versions the code, Agents are the executors.**
 
 > Requirement and task state live in two Lark Base tables: a Requirements table (one row per RQ)
 > and a Tasks table (one row per Task, linked to its RQ via a two-way link field).
@@ -519,7 +519,7 @@ Content:
 
 # Vibe-Coding Workflow
 
-> Markdown is memory, Git is the database, Lark Base is the state machine, Agents are the executors.
+> Markdown is memory, Lark Base is both the state machine and the database, Git versions the code, Agents are the executors.
 
 Four agents collaborate on development tasks. Project goals/architecture/conventions live in Markdown; per-requirement and task state live in a Lark Base — neither relies on chat history.
 

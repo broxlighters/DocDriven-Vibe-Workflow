@@ -1,4 +1,4 @@
-> **Markdown 是记忆，Git 是数据库，飞书多维表格是状态机，Agent 是执行者。**
+> **Markdown 是记忆，飞书多维表格既是状态机也是数据库，Git 管代码版本，Agent 是执行者。**
 
 > 需求和任务的状态统一由飞书多维表格（Lark Base）的两张表管理：
 > **Requirements 表**（每行一个 RQ）与 **Tasks 表**（每行一个 Task，通过双向关联指向 RQ）。
