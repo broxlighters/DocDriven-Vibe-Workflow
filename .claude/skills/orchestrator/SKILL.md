@@ -20,7 +20,7 @@ allowed-tools:
 
 ## 执行机制：每轮判定出角色后，派生子 agent
 
-本编排器**不在同一对话里切人格**，而是每轮循环判定出「该做哪个角色」后，用 **Agent 工具派生一个子 agent** 去做这件事：
+每轮循环判定出「该做哪个角色」后，用 **Agent 工具派生一个子 agent** 去做这件事：
 
 - 子 agent 的 prompt 指向对应 skill 的职责，并附上本轮要处理的具体记录（如「处理 Status=review 的 TASK-007，record_id=recXXX」）。可在 prompt 里要求子 agent **先读 `.claude/skills/<role>/SKILL.md`** 后照其执行（Planner→planner、Coder→coder、Reviewer→reviewer、Analyst→analyst）。
 - 这样每个子 agent 都是**独立 context**，天然满足「每个 Agent 都从 fresh conversation 开始、不依赖聊天历史」的核心原则——这正是手动模式「每个 Agent /clear 后重开」的自动化版本。

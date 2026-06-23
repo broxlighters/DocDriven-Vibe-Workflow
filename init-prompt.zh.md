@@ -154,7 +154,7 @@ API:        /api/user
 
 ## Agent职责
 
-Orchestrator：查询 Base → 按优先级以对应 Agent 身份执行一步 → 循环驱动
+Orchestrator：查询 Base → 按优先级派生对应子 agent 执行一步 → 循环驱动
 Analyst：与用户对话收集需求 / 输出 requirements.md，并在 Requirements 表创建 RQ 记录
 Planner：分析需求 / 维护架构文档 / 拆解任务 / 分配任务（Status→coding）/ 维护RQ状态 / 处理变更和BLOCKED
 Coder：读取 coding 任务 / 编写代码和测试 / 更新 Status→review
@@ -494,17 +494,17 @@ lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_
 
 ## 决策逻辑（每轮按优先级执行一项）
 
-0. Requirements 表为空        → 以 Analyst 身份收集需求
-1. Status=blocked 有记录      → 以 Planner 身份处理，修改需求/架构，FailCount 清零，Status→todo
-2. Status=review 有记录       → 以 Reviewer 身份审查，把结果写入 Task 同一行的 Review 字段，按结果更新 Status
+0. Requirements 表为空        → 派生 Analyst 子 agent 收集需求
+1. Status=blocked 有记录      → 派生 Planner 子 agent 处理，修改需求/架构，FailCount 清零，Status→todo
+2. Status=review 有记录       → 派生 Reviewer 子 agent 审查，把结果写入 Task 同一行的 Review 字段，按结果更新 Status
 3. coding 数 < 3 且 todo 有就绪记录 → 分配：Status→coding
-4. Status=coding 有记录       → 以 Coder 身份实现代码，完成后 Status→review
-5. todo 为空且有未覆盖需求    → 以 Planner 身份生成新 Task（创建 Tasks 记录，Status=todo）
+4. Status=coding 有记录       → 派生 Coder 子 agent 实现代码，完成后 Status→review
+5. todo 为空且有未覆盖需求    → 派生 Planner 子 agent 生成新 Task（创建 Tasks 记录，Status=todo）
 6. todo/coding/review/blocked 均无记录 → 输出完成报告，停止
 
 ## 规则
 
-- 每轮只做一件事，做完后重新判断状态
+- 每轮只做一件事（派生一个子 agent 或一次轻量流转），做完后重新判断状态
 - 每次更新 Status 后输出状态日志：[状态变更] TASK-XXX: coding → review
 - 同时最多 3 个 Status=coding 的记录
 - 遇到需人工决策的情况，暂停并说明原因

@@ -154,7 +154,7 @@ Content (paste in full):
 
 ## Agent Roles
 
-Orchestrator: query the Base → act as the right Agent for one step → loop until done
+Orchestrator: query the Base → spawn the right sub-agent for one step → loop until done
 Analyst: chat with user to gather requirements / write requirements.md and create RQ records in the Requirements table
 Planner: analyze requirements / maintain architecture docs / break down tasks / assign tasks (Status→coding) / maintain RQ status / handle changes and BLOCKED
 Coder: read coding tasks / write code and tests / update Status→review
@@ -493,17 +493,17 @@ lark-cli base +record-list --base-token $LARK_APP_TOKEN --table-id $TASKS_TABLE_
 
 ## Decision logic (execute one item per round, in priority order)
 
-0. Requirements table is empty → act as Analyst: gather requirements
-1. Status=blocked records      → act as Planner: update requirements/architecture, reset FailCount, Status→todo
-2. Status=review records       → act as Reviewer: review code, write the result into the Task row's Review fields, update Status by result
+0. Requirements table is empty → spawn Analyst sub-agent: gather requirements
+1. Status=blocked records      → spawn Planner sub-agent: update requirements/architecture, reset FailCount, Status→todo
+2. Status=review records       → spawn Reviewer sub-agent: review code, write the result into the Task row's Review fields, update Status by result
 3. coding < 3 and todo has ready records → assign: Status→coding
-4. Status=coding records       → act as Coder: implement code, Status→review when done
-5. todo empty and uncovered requirements exist → act as Planner: generate new Tasks (Tasks record, Status=todo)
+4. Status=coding records       → spawn Coder sub-agent: implement code, Status→review when done
+5. todo empty and uncovered requirements exist → spawn Planner sub-agent: generate new Tasks (Tasks record, Status=todo)
 6. No todo/coding/review/blocked records → output completion report, stop
 
 ## Rules
 
-- Do one thing per round, then re-evaluate state
+- Do one thing per round (spawn one sub-agent or perform one lightweight transition), then re-evaluate state
 - Log every status change: [State Change] TASK-XXX: coding → review
 - Max 3 Status=coding records at a time
 - Pause and explain if human judgment is needed

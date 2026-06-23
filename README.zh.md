@@ -73,7 +73,7 @@ Agent 通过 lark-cli 读取和更新记录。
 
 - **触发**：Codex 用 `$analyst`、`$planner`、`$coder`、`$reviewer`、`$orchestrator` 显式调用，或由 description 自动匹配（非 `/slash`）。
 - **frontmatter**：只保留 `name` / `description`（Codex 不支持 `allowed-tools` / `user-invocable`，已去除）。
-- **orchestrator**：Codex 无子 agent 派生能力，改为**同一会话内串行扮演**各角色（每轮重新查 Base、以记录为唯一真相）；`agents/openai.yaml` 设为仅显式触发。想要真正的 context 隔离就用手动模式单独调每个角色。
+- **orchestrator**：Codex 使用子 agent 运行 Analyst / Planner / Coder / Reviewer，各角色拥有独立 context；`agents/openai.yaml` 设为仅显式触发。
 
 `.claude/skills/`（Claude Code）与 `.agents/skills/`（Codex）两份独立维护，逻辑同源。
 
@@ -151,5 +151,5 @@ BLOCKED ─────────────→ Status=blocked
 
 **核心原则：每个 Agent 都从干净的上下文开始，不依赖聊天历史。**
 
-- **手动模式（单独调角色）**：每切一个角色前，先 `/clear`（Claude Code）或新开会话（Codex），再触发对应 skill / 粘贴 prompt。Skill 只省去「粘贴 prompt」这一步，**不会清空上下文**——在同一会话里连着切角色会让上一角色的推理串味。
-- **自动模式（orchestrator）**：无需手动 `/clear`，启动一次即可。Claude Code 版每轮派生子 agent，天然独立 context；Codex 版在同一会话串行扮演各角色，靠「每轮重新查 Base、以记录为唯一真相」来弥补隔离。
+- **手动模式（单独调角色）**：每切一个角色前，先 `/clear`（Claude Code）或新开会话（Codex），再触发对应 skill / 粘贴 prompt。Skill 只省去「粘贴 prompt」这一步，**不会清空上下文**。
+- **自动模式（orchestrator）**：无需手动 `/clear`，启动一次即可。Orchestrator 每轮派生子 agent，各角色天然拥有独立 context。

@@ -16,7 +16,7 @@ Orchestrator
 │
 ├─ 查询 Base 各状态任务
 ├─ 按优先级判断当前该做什么
-├─ 以对应 Agent 身份执行一步
+├─ 派生对应子 agent 执行一步
 └─ 循环驱动，直到所有需求完成
 
 Analyst
@@ -321,7 +321,7 @@ rm -f ./.lark_tmp.json
 
 # 8. Orchestrator工作流程
 
-Orchestrator 驱动整个循环，每轮按优先级判断当前该做什么，并以对应 Agent 身份执行一步。
+Orchestrator 驱动整个循环，每轮按优先级判断当前该做什么，并派生对应子 agent 执行一步。
 
 启动后读取 `docs/` 下所有文件，并查询 Base 各状态任务数量：
 
@@ -332,13 +332,13 @@ lark-cli base +record-list --as bot --profile $LARK_PROFILE --base-token $LARK_A
 决策优先级（每轮只做一件事，做完重新判断）：
 
 ```text
-0.  Requirements 表为空     → 以 Analyst 身份收集需求（开局模式）
-0.5 用户中途提出新增/变更需求 → 以 Analyst 身份处理（增量模式），只为新模块新建 RQ，不动旧 RQ
-1. Status=blocked 有记录    → 以 Planner 身份处理，清零 FailCount，改回 todo
-2. Status=review 有记录     → 以 Reviewer 身份审查，写 Review 字段并按结果更新 Status
+0.  Requirements 表为空     → 派生 Analyst 子 agent 收集需求（开局模式）
+0.5 用户中途提出新增/变更需求 → 派生 Analyst 子 agent 处理（增量模式），只为新模块新建 RQ，不动旧 RQ
+1. Status=blocked 有记录    → 派生 Planner 子 agent 处理，清零 FailCount，改回 todo
+2. Status=review 有记录     → 派生 Reviewer 子 agent 审查，写 Review 字段并按结果更新 Status
 3. coding 数 < 3 且 todo 有就绪记录 → 分配：Status → coding
-4. Status=coding 有记录     → 以 Coder 身份实现代码，完成后 Status → review
-5. todo 为空且有未覆盖需求   → 以 Planner 身份生成新 Task
+4. Status=coding 有记录     → 派生 Coder 子 agent 实现代码，完成后 Status → review
+5. todo 为空且有未覆盖需求   → 派生 Planner 子 agent 生成新 Task
 6. todo/coding/review/blocked 均无记录 → 所有需求完成，输出报告，停止
 ```
 

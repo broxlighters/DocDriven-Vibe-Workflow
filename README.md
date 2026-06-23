@@ -73,7 +73,7 @@ The same skills are also packaged under repo-level `.agents/skills/` following t
 
 - **Trigger**: Codex uses `$analyst`, `$planner`, `$coder`, `$reviewer`, `$orchestrator` (explicit) or auto-matches via the description — not `/slash`.
 - **Frontmatter**: only `name` / `description` are kept (Codex ignores `allowed-tools` / `user-invocable`, which were removed).
-- **orchestrator**: Codex has no sub-agent spawning, so it drives the roles **sequentially within one session** (re-querying the Base each round, treating records as the only source of truth); `agents/openai.yaml` makes it explicit-invocation only. For true context isolation, use manual mode and invoke each role separately.
+- **orchestrator**: Codex uses sub-agents to run Analyst / Planner / Coder / Reviewer with isolated context; `agents/openai.yaml` makes it explicit-invocation only.
 
 `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex) are maintained as two independent copies with the same logic.
 
@@ -148,5 +148,5 @@ BLOCKED              → Status=blocked
 
 **Core principle: every Agent starts from a clean context. No reliance on chat history.**
 
-- **Manual mode (single roles):** before each role, `/clear` (Claude Code) or open a new session (Codex), then trigger the skill / paste the prompt. The skills only save you the paste — they do **not** clear context, so switching roles in the same session would leak the previous role's reasoning.
-- **Auto mode (orchestrator):** no manual `/clear` needed — start it once. The Claude Code version spawns each role as a sub-agent (isolated context by construction); the Codex version drives roles sequentially in one session and compensates by re-querying the Base every round and treating records as the only source of truth.
+- **Manual mode (single roles):** before each role, `/clear` (Claude Code) or open a new session (Codex), then trigger the skill / paste the prompt. The skills only save you the paste — they do **not** clear context.
+- **Auto mode (orchestrator):** no manual `/clear` needed — start it once. The Orchestrator spawns each role as a sub-agent, so every role runs with isolated context.
