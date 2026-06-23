@@ -70,6 +70,7 @@ rm -f ./.lark_filter.json
 ```
 
 要点：
+- **JSON 文件必须无 BOM。** lark-cli 的 JSON 解析器拒收开头的 UTF-8 BOM 字节。本文用的 `cat > 文件 <<'EOF'`（bash heredoc）本身就不带 BOM，是推荐写法。**严禁用 PowerShell 5.1 的 `Set-Content -Encoding UTF8` 或 `Out-File -Encoding UTF8`**——它们会写入 BOM 导致写回失败。必须用 PowerShell 时改用无 BOM 写法，例如 `[System.IO.File]::WriteAllText("$PWD\.lark_tmp.json", $json, (New-Object System.Text.UTF8Encoding $false))`，或 PowerShell 7+ 的 `Set-Content -Encoding utf8NoBOM`。
 - 文件**必须在项目目录内**、用 `./` 相对路径（`@/tmp/x.json` 或 `@C:\...` 会被拒）。
 - 临时文件已在 `.gitignore`（`.lark_*.json`），用完 `rm -f`。
 - `--json` 是顶层字段映射，**不要再包一层 `fields`**。
