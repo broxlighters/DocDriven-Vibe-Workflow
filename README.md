@@ -51,6 +51,30 @@ Start the Orchestrator once. It loops through the decision logic and drives Plan
 
 Both modes share the same file structure and can be switched at any time.
 
+### Slash triggers (Claude Code Skills)
+
+`docs/prompt/*` are packaged as project-level Skills (`.claude/skills/`). In Claude Code you can trigger each role with a slash command instead of pasting the prompt:
+
+| Command | Role |
+|---------|------|
+| `/analyst` | Gather / clarify requirements, create RQs |
+| `/planner` | Break down tasks, assign, maintain status, unblock |
+| `/coder` | Implement the current coding task |
+| `/reviewer` | Review the task and transition status |
+| `/orchestrator` | Drive the whole flow automatically (spawns the sub-agents above) |
+
+The shared "identity precheck + JSON @file rules" live in `.claude/skills/_shared/lark-base-ops.md`, referenced by each Skill at startup. `docs/prompt/*` remain as readable sources, kept in sync with the Skills.
+
+#### Using them in Codex CLI
+
+The same skills are also packaged under repo-level `.agents/skills/` following the [Codex / open SKILL.md standard](https://developers.openai.com/codex/skills) (Codex scans this directory from the cwd upward). Differences:
+
+- **Trigger**: Codex uses `$analyst`, `$planner`, `$coder`, `$reviewer`, `$orchestrator` (explicit) or auto-matches via the description — not `/slash`.
+- **Frontmatter**: only `name` / `description` are kept (Codex ignores `allowed-tools` / `user-invocable`, which were removed).
+- **orchestrator**: Codex has no sub-agent spawning, so it drives the roles **sequentially within one session** (re-querying the Base each round, treating records as the only source of truth); `agents/openai.yaml` makes it explicit-invocation only. For true context isolation, use manual mode and invoke each role separately.
+
+`.claude/skills/` (Claude Code) and `.agents/skills/` (Codex) are maintained as two independent copies with the same logic.
+
 ---
 
 ## Quick Start

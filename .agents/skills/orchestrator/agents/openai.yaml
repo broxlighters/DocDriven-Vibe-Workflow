@@ -1,0 +1,4 @@
+# Codex 专属配置：orchestrator 是「重」操作（会自动跑完整工作流、连续写 Base），
+# 关闭隐式触发，仅在用户显式 $orchestrator 调用时运行，避免误触。
+policy:
+  allow_implicit_invocation: false

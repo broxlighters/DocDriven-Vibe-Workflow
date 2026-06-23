@@ -51,6 +51,30 @@ Agent 通过 lark-cli 读取和更新记录。
 
 两种模式使用同一套文件结构，可以随时切换。
 
+### Slash 触发（Claude Code Skills）
+
+`docs/prompt/*` 已封装成项目级 Skill（`.claude/skills/`），在 Claude Code 里可直接用斜杠触发，无需手动粘贴 prompt：
+
+| 命令 | 角色 |
+|------|------|
+| `/analyst` | 收集 / 澄清需求，建 RQ |
+| `/planner` | 拆 Task、分配、维护状态、解阻塞 |
+| `/coder` | 实现当前 coding 任务 |
+| `/reviewer` | 审查 review 任务并流转状态 |
+| `/orchestrator` | 一键自动驱动整个工作流（派生上述子 agent） |
+
+共用的「身份预检 + JSON @文件规范」抽到 `.claude/skills/_shared/lark-base-ops.md`，各 Skill 启动时引用它。`docs/prompt/*` 作为可读源保留，与 Skill 同源。
+
+#### 在 Codex CLI 中使用
+
+同一套 Skill 也已按 [Codex / 开放 SKILL.md 标准](https://developers.openai.com/codex/skills) 放在仓库级 `.agents/skills/`（Codex 会从当前目录向上扫描该目录）。差异：
+
+- **触发**：Codex 用 `$analyst`、`$planner`、`$coder`、`$reviewer`、`$orchestrator` 显式调用，或由 description 自动匹配（非 `/slash`）。
+- **frontmatter**：只保留 `name` / `description`（Codex 不支持 `allowed-tools` / `user-invocable`，已去除）。
+- **orchestrator**：Codex 无子 agent 派生能力，改为**同一会话内串行扮演**各角色（每轮重新查 Base、以记录为唯一真相）；`agents/openai.yaml` 设为仅显式触发。想要真正的 context 隔离就用手动模式单独调每个角色。
+
+`.claude/skills/`（Claude Code）与 `.agents/skills/`（Codex）两份独立维护，逻辑同源。
+
 ---
 
 ## 快速开始
