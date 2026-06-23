@@ -69,8 +69,21 @@ lark-cli base +record-list --as bot --profile "$LARK_PROFILE" --base-token "$LAR
 rm -f ./.lark_filter.json
 ```
 
+### `@文件` 在不同 shell 里的写法（两套等价，按所在 shell 选）
+
+`@` 在 PowerShell 里是 splatting/数组运算符，裸写 `@./.lark_filter.json` 会被当成语法报错而不是参数。`@` 由 **lark-cli 自己解析**，所以要确保这个字面字符串原样传进去：
+
+- **bash / Git Bash（项目默认，推荐）**：裸写即可，如上例 `--filter-json @./.lark_filter.json`。`@` 对 bash 无特殊含义。
+- **PowerShell**：把整个 `@...` 参数**加引号**，让 PowerShell 当普通字符串传递：
+  ```powershell
+  lark-cli base +record-list --as bot --profile "$env:LARK_PROFILE" --base-token "$env:LARK_APP_TOKEN" --table-id "$env:TASKS_TABLE_ID" `
+    --filter-json "@./.lark_filter.json" --format json
+  ```
+  写入侧同理：`--json "@./.lark_tmp.json"`。**不要**改回内联 `'{...}'`——PowerShell 会剥掉 JSON 双引号，回到最初的失败。
+
 要点：
 - **JSON 文件必须无 BOM。** lark-cli 的 JSON 解析器拒收开头的 UTF-8 BOM 字节。本文用的 `cat > 文件 <<'EOF'`（bash heredoc）本身就不带 BOM，是推荐写法。**严禁用 PowerShell 5.1 的 `Set-Content -Encoding UTF8` 或 `Out-File -Encoding UTF8`**——它们会写入 BOM 导致写回失败。必须用 PowerShell 时改用无 BOM 写法，例如 `[System.IO.File]::WriteAllText("$PWD\.lark_tmp.json", $json, (New-Object System.Text.UTF8Encoding $false))`，或 PowerShell 7+ 的 `Set-Content -Encoding utf8NoBOM`。
+- **`@文件` 参数在 PowerShell 里必须加引号**（`"@./.lark_filter.json"`），否则 `@` 被当 splatting 语法报错；bash 下裸写即可。详见上节。
 - 文件**必须在项目目录内**、用 `./` 相对路径（`@/tmp/x.json` 或 `@C:\...` 会被拒）。
 - 临时文件已在 `.gitignore`（`.lark_*.json`），用完 `rm -f`。
 - `--json` 是顶层字段映射，**不要再包一层 `fields`**。
